@@ -1,0 +1,16 @@
+DuckChat2
+=========
+DuckChat supporting distributed servers.
+
+--------------------------------------------------------------------------------
+Prerequisits
+- User must be on a SunOS system or a Linux machine.
+    + Verify this by running command 'uname' and make sure it matches to either
+    of the two strings "SunOS" or "Linux"
+- POSIX Sockets library
+
+--------------------------------------------------------------------------------
+Building DuckChat2
+
+To build the binaries, simply run 'make' from the project directory. The
+resulting server and client binary will be placed in the bin/ directory. 
