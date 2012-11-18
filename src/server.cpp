@@ -293,7 +293,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
 
     // print debug message
     cout << hostname << ":" << port << ip << ":" << srcport 
-        << " recv Request Login (from" << username << ")"  << endl;
+        << " recv Request Login (from " << username << ")"  << endl;
 }
 
 void handle_logout_message(struct sockaddr_in sock){
@@ -344,7 +344,7 @@ void handle_logout_message(struct sockaddr_in sock){
 
         // print debug message
         cout << hostname << ":" << port << ip << ":" << srcport 
-            << " recv Request Logout (from" << username << ")"  << endl;
+            << " recv Request Logout (from " << username << ")"  << endl;
     }
 }
 
@@ -395,7 +395,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
         
         // print debug message 
         cout << hostname << ":" << port << ip << ":" << srcport 
-            << " recv Request Join " << channel << " (from" << username << ")"  << endl;
+            << " recv Request Join " << channel << " (from " << username << ")"  << endl;
     }
 }
 
