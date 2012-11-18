@@ -20,6 +20,8 @@
 /* Define some types for designating request and text codes */
 typedef int request_t;
 typedef int text_t;
+typedef int s2s_t;
+typedef long int s2s_uniqueID;
 
 /* Define codes for request types.  These are the messages sent to the server. */
 #define REQ_LOGIN 0
@@ -37,6 +39,13 @@ typedef int text_t;
 #define TXT_WHO 2
 #define TXT_ERROR 3
 
+/* Define codes for s2s types.  These are the messages sent from 'server to server' (s2s). */
+#define S2S_JOIN 8
+#define S2S_LEAVE 9
+#define S2S_SAY 10
+
+/**********************************************************************************/
+// Regular client (request) messages
 /* This structure is used for a generic request type, to the server. */
 struct request {
         request_t req_type;
@@ -84,6 +93,8 @@ struct request_keep_alive {
         request_t req_type; /* = REQ_KEEP_ALIVE */
 } packed;
 
+/**********************************************************************************/
+// Regular server (text) messages
 /* This structure is used for a generic text type, to the client. */
 struct text {
         text_t txt_type;
@@ -127,5 +138,35 @@ struct text_error {
         text_t txt_type; /* = TXT_ERROR */
         char txt_error[SAY_MAX]; // Error message
 };
+
+/**********************************************************************************/
+// Server to Server (S2S) messages
+
+/* This structure is used for a generic text type, to the client. */
+struct s2s {
+        s2s_t s2s_type;
+} packed;
+
+/* Once we've looked at txt_type, we then cast the pointer to one of
+ * the types below to look deeper into the structure.  Each of these
+ * corresponds with one of the TXT_ codes above. */
+
+struct s2s_join {
+        s2s_t s2s_type; /* = S2S_JOIN */
+        char s2s_channel[CHANNEL_MAX]; 
+} packed;
+
+struct s2s_leave {
+        s2s_t s2s_type; /* = S2S_LEAVE */
+        char sts_channel[CHANNEL_MAX]; 
+} packed;
+
+struct s2s_say {
+        s2s_t s2s_type; /* = S2S_SAY */
+        s2s_uniqeID s2s_uniqueID;        
+        char s2s_channel[CHANNEL_MAX];
+        char s2s_username[USERNAME_MAX];
+        char s2s_text[SAY_MAX];
+} packed;
 
 #endif
