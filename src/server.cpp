@@ -427,7 +427,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
     // print debug message 
     cout << hostname << ":" << port << ip << ":" << srcport 
-        << " recv Request Leave " << channel << " (from" << username << ")"  << endl;
+        << " recv Request Leave " << channel  << endl;
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() ){
