@@ -26,23 +26,7 @@ using namespace std;
 #define HOSTNAME_MAX 100
 #define MAX_MESSAGE_LEN 65536
 
-/* The type for our channel map */
-typedef map<string, struct sockaddr_in> channel_type; 
-
-int s; //socket for listening
-struct sockaddr_in server;
-
-
-map<string,struct sockaddr_in> usernames; //<username, sockaddr_in of user>
-map<string,int> active_usernames; //0-inactive , 1-active
-//map<struct sockaddr_in,string> rev_usernames;
-map<string,string> rev_usernames; //<ip+port in string, username>
-map<string,channel_type> channels;
-
-//int s2;
-//int connectlist[MAX_CONNECTIONS]; //accepted connections
-//fd_set fds; //file descriptor set for select
-
+/* Handler function declarations */
 void handle_socket_input();
 void handle_login_message(void *data, struct sockaddr_in sock);
 void handle_logout_message(struct sockaddr_in sock);
@@ -54,11 +38,22 @@ void handle_who_message(void *data, struct sockaddr_in sock);
 void handle_keep_alive_message(struct sockaddr_in sock);
 void send_error_message(struct sockaddr_in sock, string error_msg);
 
-int main(int argc, char *argv[])
-{
-    if (argc != 3)
-    {
-        printf("Usage: ./server domain_name port_num\n");
+/* The type for our channel map */
+typedef map<string, struct sockaddr_in> channel_type; 
+
+int s; //socket for listening
+struct sockaddr_in server;
+
+map<string,struct sockaddr_in> usernames; //<username, sockaddr_in of user>
+map<string,int>             active_usernames; //0-inactive , 1-active
+map<string,string>          rev_usernames; //<ip+port in string, username>
+map<string,channel_type>    channels;
+
+int main(int argc, char *argv[]){
+
+    // check user entered correct commandline arguments
+    if (argc < 3){
+        printf("Usage: %s domain_name port_num [serverIPs]\n", argv[0]);
         exit(1);
     }
 
@@ -68,9 +63,9 @@ int main(int argc, char *argv[])
     strcpy(hostname, argv[1]);
     port = atoi(argv[2]);
 
+    // make socket
     s = socket(PF_INET, SOCK_DGRAM, 0);
-    if (s < 0)
-    {
+    if (s < 0){
         perror ("socket() failed\n");
         exit(1);
     }
@@ -88,10 +83,9 @@ int main(int argc, char *argv[])
 
     int err;
 
+    // bind the socket to our addrinfo
     err = bind(s, (struct sockaddr*)&server, sizeof server);
-
-    if (err < 0)
-    {
+    if (err < 0){
         perror("bind failed\n");
     }
 
@@ -100,15 +94,15 @@ int main(int argc, char *argv[])
     map<string,struct sockaddr_in> default_channel_users;
     channels[default_channel] = default_channel_users;
 
+    // create struct for 2 minute timout
     struct timeval tv;
     tv.tv_sec = 120;
     tv.tv_usec = 0;
 
     time_t t1,t2;
 
-
-    while(1) // server runs for ever
-    {
+    // main event loop to accept client requests
+    while(1){
 
         // use a file descriptor with a timer to handle timeouts
         int rc;
@@ -116,53 +110,37 @@ int main(int argc, char *argv[])
 
         FD_ZERO(&fds);
         FD_SET(s, &fds);
-        // tv.tv_sec = tv.tv_usec = 0;
 
-
-        // rc = select(s+1, &fds, NULL, NULL, NULL);
         time(&t1);
 
         rc = select(s+1, &fds, NULL, NULL, &tv);
         if (rc < 0)
-        {
             printf("error in select\n");
-        }
-        else
-        {
+        else{
             int socket_data = 0;
 
-            if (FD_ISSET(s,&fds))
-            {
+            if (FD_ISSET(s,&fds)){
                 // reading from socket
                 handle_socket_input();
                 socket_data = 1;
-
             }
 
             time(&t2);
 
             int elapsed_time = (int) t2-t1;
-            // cout << "elapsed time: " << elapsed_time << endl;
 
-            if (socket_data)
-            {
+            if (socket_data){
                 // reduce the timer
-                if (elapsed_time <= 120)
-                {
+                if (elapsed_time <= 120){
                     tv.tv_sec = tv.tv_sec - elapsed_time;
                     tv.tv_usec = 0;
-                }
-                else
-                {
+                
+                }else{
                     tv.tv_sec = 120;
                     tv.tv_usec = 0;
                 }
 
-                // cout << "receiving socket data: new timer value " << tv.tv_sec << endl;
-
-            }
-            else
-            {
+            }else{
                 //reset timer
                 tv.tv_sec = 120;
                 tv.tv_usec = 0;
@@ -170,8 +148,7 @@ int main(int argc, char *argv[])
                 //cout << "timer time out: reseting the timer "<< endl;
                 //check whether users are active and remove users if not active
                 map<string,int>::iterator active_user_iter;
-                for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++)
-                {
+                for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++){
                     string username = active_user_iter->first;
                     int isActive = active_user_iter->second;
 
