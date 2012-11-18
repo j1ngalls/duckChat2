@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
 
     // check user entered correct commandline arguments
     if (argc < 3){
-        printf("Usage: %s domain_name port_num [serverIPs]\n", argv[0]);
+        printf("Usage: %s domain_name port_num [serverIPs] [serverPort]\n", argv[0]);
         exit(1);
     }
 
