@@ -36,6 +36,9 @@ void handle_say_message(void *data, struct sockaddr_in sock);
 void handle_list_message(struct sockaddr_in sock);
 void handle_who_message(void *data, struct sockaddr_in sock);
 void handle_keep_alive_message(struct sockaddr_in sock);
+void handle_s_join(void *data, struct sockaddr_in sock);
+void handle_s_leave(void *data, struct sockaddr_in sock);
+void handle_s_say(void *data, struct sockaddr_in sock);
 void send_error_message(struct sockaddr_in sock, string error_msg);
 
 /* The type for our channel map */
@@ -43,6 +46,8 @@ typedef map<string, struct sockaddr_in> channel_type;
 
 int s; //socket for listening
 struct sockaddr_in server;
+char hostname[HOSTNAME_MAX];
+int port;
 
 map<string,struct sockaddr_in> usernames; //<username, sockaddr_in of user>
 map<string,int>             active_usernames; //0-inactive , 1-active
@@ -57,8 +62,6 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    char hostname[HOSTNAME_MAX];
-    int port;
 
     strcpy(hostname, argv[1]);
     port = atoi(argv[2]);
@@ -231,31 +234,40 @@ void handle_socket_input(){
 
         request_t message_type = request_msg->req_type;
 
-        if (message_type == REQ_LOGIN)
-            handle_login_message(data, recv_client); //some methods would need recv_client
+        if (message_type == REQ_LOGIN){
+            handle_login_message(data, recv_client); 
         
-        else if (message_type == REQ_LOGOUT)
+        }else if (message_type == REQ_LOGOUT){
             handle_logout_message(recv_client);
         
-        else if (message_type == REQ_JOIN)
+        }else if (message_type == REQ_JOIN){
             handle_join_message(data, recv_client);
         
-        else if (message_type == REQ_LEAVE)
+        }else if (message_type == REQ_LEAVE){
             handle_leave_message(data, recv_client);
         
-        else if (message_type == REQ_SAY)
+        }else if (message_type == REQ_SAY){
             handle_say_message(data, recv_client);
         
-        else if (message_type == REQ_LIST)
+        }else if (message_type == REQ_LIST){
             handle_list_message(recv_client);
         
-        else if (message_type == REQ_WHO)
+        }else if (message_type == REQ_WHO){
             handle_who_message(data, recv_client);
         
-        else if (message_type == REQ_KEEP_ALIVE)
+        }else if (message_type == REQ_KEEP_ALIVE){
             handle_keep_alive_message(recv_client);
         
-        else
+        }else if (message_type == S2S_JOIN){
+            handle_s_join(data, recv_client);
+        
+        }else if (message_type == S2S_LEAVE){
+            handle_s_leave(data, recv_client);
+        
+        }else if (message_type == S2S_SAY){
+            handle_s_say(data, recv_client);
+
+        }else
             //send error message to client
             send_error_message(recv_client, "*Unknown command");
     }
@@ -271,15 +283,15 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     active_usernames[username] = 1;
 
     string ip = inet_ntoa(sock.sin_addr);
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
 
     string key = ip + "." +port_str;
     rev_usernames[key] = username;
 
-    cout << "server: " << username << " logs in" << endl;
+    cout << hostname << ":" << port << ip << ":" << srcport << " recv Request Login" << endl;
 }
 
 void handle_logout_message(struct sockaddr_in sock){
@@ -742,7 +754,6 @@ void handle_who_message(void *data, struct sockaddr_in sock)
     }
 }
 
-// XXX: comment this function
 void handle_keep_alive_message(struct sockaddr_in sock)
 {
 
@@ -776,7 +787,15 @@ void handle_keep_alive_message(struct sockaddr_in sock)
     }
 }
 
-// XXX: comment this function
+void handle_s_join(void *data, struct sockaddr_in sock){
+}
+
+void handle_s_leave(void *data, struct sockaddr_in sock){
+}
+
+void handle_s_say(void *data, struct sockaddr_in sock){
+}
+
 void send_error_message(struct sockaddr_in sock, string error_msg)
 {
     ssize_t bytes;
