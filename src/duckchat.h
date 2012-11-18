@@ -163,7 +163,7 @@ struct s2s_leave {
 
 struct s2s_say {
         s2s_t s2s_type; /* = S2S_SAY */
-        s2s_uniqeID s2s_uniqueID;        
+        s2s_uniqueID s2s_uniqueID;        
         char s2s_channel[CHANNEL_MAX];
         char s2s_username[USERNAME_MAX];
         char s2s_text[SAY_MAX];
