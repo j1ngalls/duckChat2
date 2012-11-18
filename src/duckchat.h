@@ -21,7 +21,6 @@
 typedef int request_t;
 typedef int text_t;
 typedef int s2s_t;
-typedef long int s2s_uniqueID;
 
 /* Define codes for request types.  These are the messages sent to the server. */
 #define REQ_LOGIN 0
@@ -163,7 +162,7 @@ struct s2s_leave {
 
 struct s2s_say {
         s2s_t s2s_type; /* = S2S_SAY */
-        s2s_uniqueID s2s_uniqueID;        
+        long int s2s_uniqueID;        
         char s2s_channel[CHANNEL_MAX];
         char s2s_username[USERNAME_MAX];
         char s2s_text[SAY_MAX];
