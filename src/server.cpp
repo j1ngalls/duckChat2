@@ -169,10 +169,10 @@ int main(int argc, char *argv[]){
                         struct sockaddr_in sock = user_iter->second;
                         string ip = inet_ntoa(sock.sin_addr);
 
-                        int port = sock.sin_port;
+                        int srcport = sock.sin_port;
 
                         char port_str[6];
-                        sprintf(port_str, "%d", port);
+                        sprintf(port_str, "%d", srcport);
                         string key = ip + "." +port_str;
 
                         map <string,string> :: iterator rev_user_iter;
@@ -291,16 +291,18 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     string key = ip + "." +port_str;
     rev_usernames[key] = username;
 
-    cout << hostname << ":" << port << ip << ":" << srcport << " recv Request Login" << endl;
+    // print debug message
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request Login (from" << username << ")"  << endl;
 }
 
 void handle_logout_message(struct sockaddr_in sock){
     //construct the key using sockaddr_in
     string ip = inet_ntoa(sock.sin_addr);
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
 
     string key = ip + "." +port_str;
 
@@ -340,7 +342,9 @@ void handle_logout_message(struct sockaddr_in sock){
         active_user_iter = active_usernames.find(username);
         active_usernames.erase(active_user_iter);
 
-        cout << "server: " << username << " logs out" << endl;
+        // print debug message
+        cout << hostname << ":" << port << ip << ":" << srcport 
+            << " recv Request Logout (from" << username << ")"  << endl;
     }
 }
 
@@ -354,10 +358,10 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
     //check whether key is in rev_usernames
@@ -389,7 +393,9 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             //channel already exits
             channels[channel][username] = sock;
         
-        cout << "server: " << username << " joins channel " << channel << endl;
+        // print debug message 
+        cout << hostname << ":" << port << ip << ":" << srcport 
+            << " recv Request Join " << channel << " (from" << username << ")"  << endl;
     }
 }
 
@@ -410,14 +416,18 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
+
+    // print debug message 
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request Leave " << channel << " (from" << username << ")"  << endl;
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() ){
@@ -469,13 +479,11 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
 void handle_say_message(void *data, struct sockaddr_in sock)
 {
-
     //check whether the user is in usernames
     //if yes check whether channel is in channels
     //check whether the user is in the channel
     //if yes send the message to all the members of the channel
     //if not send an error message to the user
-
 
     //get message fields
     struct request_say* msg;
@@ -484,17 +492,20 @@ void handle_say_message(void *data, struct sockaddr_in sock)
     string channel = msg->req_channel;
     string text = msg->req_text;
 
-
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
+    
+    // print debug message 
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request Say " << channel << " \"" << text << "\"" << endl;
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() ){
@@ -573,20 +584,21 @@ void handle_list_message(struct sockaddr_in sock)
     //if yes, send a list of channels
     //if not send an error message to the user
 
-
-
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
 
+    // print debug message 
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request List " << endl;
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() )
@@ -673,15 +685,18 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
 
+    // print debug message 
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request Who " << channel << endl;
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() ){
@@ -763,16 +778,18 @@ void handle_keep_alive_message(struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int port = sock.sin_port;
+    int srcport = sock.sin_port;
 
     char port_str[6];
-    sprintf(port_str, "%d", port);
+    sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
-
+    
+    // print debug message 
+    cout << hostname << ":" << port << ip << ":" << srcport 
+        << " recv Request Keep_Alive " << endl;
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
-
 
     iter = rev_usernames.find(key);
     if (iter == rev_usernames.end() )
