@@ -42,17 +42,17 @@ void handle_s_say(void *data, struct sockaddr_in sock);
 void send_error_message(struct sockaddr_in sock, string error_msg);
 
 /* The type for our channel map */
-typedef map<string, struct sockaddr_in> channel_type; 
+typedef map<string, struct sockaddr_in> unameTosockaddr_t; //<username, sockaddr_in of user
 
-int s; //socket for listening
-struct sockaddr_in server;
-char hostname[HOSTNAME_MAX];
-int port;
+int s;                      // socket for listening
+struct sockaddr_in server;  // OUR SERVER sockaddr struct
+char hostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
+int port;                   // port number of our server
 
-map<string,struct sockaddr_in> usernames; //<username, sockaddr_in of user>
-map<string,int>             active_usernames; //0-inactive , 1-active
-map<string,string>          rev_usernames; //<ip+port in string, username>
-map<string,channel_type>    channels;
+unameTosockaddr_t                usernames;          //<username, sockaddr_in of user>
+map<string,int>             active_usernames;   //<username, [0-inactive, 1-active] >
+map<string,string>          rev_usernames;      //<ip+port in string, username>
+map<string,unameTosockaddr_t>    channels;           //<channel, mapsockaddr_in of user>>
 
 int main(int argc, char *argv[]){
 
@@ -61,7 +61,6 @@ int main(int argc, char *argv[]){
         printf("Usage: %s domain_name port_num [serverIPs] [serverPort]\n", argv[0]);
         exit(1);
     }
-
 
     strcpy(hostname, argv[1]);
     port = atoi(argv[2]);
@@ -94,7 +93,7 @@ int main(int argc, char *argv[]){
 
     // create default channel Common
     string default_channel = "Common";
-    map<string,struct sockaddr_in> default_channel_users;
+    unameTosockaddr_t default_channel_users;
     channels[default_channel] = default_channel_users;
 
     // create struct for 2 minute timout
@@ -155,17 +154,15 @@ int main(int argc, char *argv[]){
                     string username = active_user_iter->first;
                     int isActive = active_user_iter->second;
 
-                    if (!(isActive))
-                    {
-                        //key has to be constructed to remove from rev_usernames
+                    if (!(isActive)){
 
+                        //key has to be constructed to remove from rev_usernames
                         cout << "server: forcibly removing user " << username << endl;
 
-                        map<string,struct sockaddr_in>::iterator user_iter;
+                        unameTosockaddr_t::iterator user_iter;
                         user_iter = usernames.find(username);
 
                         //key has to be constructed to remove from rev_usernames
-
                         struct sockaddr_in sock = user_iter->second;
                         string ip = inet_ntoa(sock.sin_addr);
 
@@ -184,23 +181,21 @@ int main(int argc, char *argv[]){
                         usernames.erase(user_iter);
 
                         //remove from all the channels if found
-                        map<string,channel_type>::iterator channel_iter;
-                        for(channel_iter = channels.begin(); channel_iter != channels.end(); channel_iter++)
-                        {
-                            //cout << "key: " << iter->first << " username: " << iter->second << endl;
-                            //channel_type current_channel = channel_iter->second;
-                            map<string,struct sockaddr_in>::iterator within_channel_iterator;
+                        map<string,unameTosockaddr_t>::iterator channel_iter;
+                        for(channel_iter = channels.begin(); channel_iter != channels.end(); channel_iter++){
+                            unameTosockaddr_t::iterator within_channel_iterator;
                             within_channel_iterator = channel_iter->second.find(username);
+
                             if (within_channel_iterator != channel_iter->second.end())
-                            {
                                 channel_iter->second.erase(within_channel_iterator);
-                            }
 
                         }
+
                         //erase from active users
                         active_usernames.erase(active_user_iter);
                     }
                 }
+
                 //reset the data structure that keep track of active users
                 for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++)
                     active_user_iter->second = 0;
@@ -321,15 +316,15 @@ void handle_logout_message(struct sockaddr_in sock){
         rev_usernames.erase(iter);
 
         //remove from usernames
-        map<string,struct sockaddr_in>::iterator user_iter;
+        unameTosockaddr_t::iterator user_iter;
         user_iter = usernames.find(username);
         usernames.erase(user_iter);
 
         //remove from all the channels if found
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
         for(channel_iter = channels.begin(); channel_iter != channels.end(); channel_iter++){
-            map<string,struct sockaddr_in>::iterator within_channel_iterator;
+            unameTosockaddr_t::iterator within_channel_iterator;
             within_channel_iterator = channel_iter->second.find(username);
 
             if (within_channel_iterator != channel_iter->second.end())
@@ -377,7 +372,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
         string username = rev_usernames[key];
 
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
         channel_iter = channels.find(channel);
 
@@ -385,7 +380,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
         if (channel_iter == channels.end()){
             //channel not found
-            map<string,struct sockaddr_in> new_channel_users;
+            unameTosockaddr_t new_channel_users;
             new_channel_users[username] = sock;
             channels[channel] = new_channel_users;
         
@@ -439,7 +434,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
         string username = rev_usernames[key];
 
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
         channel_iter = channels.find(channel);
 
@@ -454,9 +449,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
         }else{
 
             //channel already exits
-            //map<string,struct sockaddr_in> existing_channel_users;
-            //existing_channel_users = channels[channel];
-            map<string,struct sockaddr_in>::iterator channel_user_iter;
+            unameTosockaddr_t::iterator channel_user_iter;
             channel_user_iter = channels[channel].find(username);
 
             if (channel_user_iter == channels[channel].end()){
@@ -516,7 +509,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
     }else{
         string username = rev_usernames[key];
 
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
         channel_iter = channels.find(channel);
 
@@ -531,8 +524,6 @@ void handle_say_message(void *data, struct sockaddr_in sock)
         }else{
     
             //channel already exits
-            //map<string,struct sockaddr_in> existing_channel_users;
-            //existing_channel_users = channels[channel];
             map<string,struct sockaddr_in>::iterator channel_user_iter;
             channel_user_iter = channels[channel].find(username);
 
@@ -543,7 +534,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
                 cout << "server: " << username << " trying to send a message to channel " << channel  << " where he/she is not a member" << endl;
             
             }else{
-                map<string,struct sockaddr_in> existing_channel_users;
+                unameTosockaddr_t existing_channel_users;
                 existing_channel_users = channels[channel];
                 for(channel_user_iter = existing_channel_users.begin(); channel_user_iter != existing_channel_users.end(); channel_user_iter++){
                     ssize_t bytes;
@@ -628,7 +619,7 @@ void handle_list_message(struct sockaddr_in sock)
         send_msg->txt_nchannels = size;
 
 
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
 
 
@@ -709,7 +700,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
         active_usernames[username] = 1;
 
-        map<string,channel_type>::iterator channel_iter;
+        map<string,unameTosockaddr_t>::iterator channel_iter;
 
         channel_iter = channels.find(channel);
 
@@ -720,7 +711,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
         }else{
             //channel exits
-            map<string,struct sockaddr_in> existing_channel_users;
+            unameTosockaddr_t existing_channel_users;
             existing_channel_users = channels[channel];
             int size = existing_channel_users.size();
 
@@ -738,7 +729,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
             strcpy(send_msg->txt_channel, str);
 
-            map<string,struct sockaddr_in>::iterator channel_user_iter;
+            unameTosockaddr_t::iterator channel_user_iter;
 
             int pos = 0;
 
