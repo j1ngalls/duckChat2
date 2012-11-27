@@ -1,9 +1,9 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 #uncomment the topolgy you want. The simple two-server topology is uncommented here.
 
 # Change the SERVER variable below to point your server executable.
-SERVER=~/cis432/prog2/server
+SERVER=./bin/server
 
 SERVER_NAME=`echo $SERVER | sed 's#.*/\(.*\)#\1#g'`
 

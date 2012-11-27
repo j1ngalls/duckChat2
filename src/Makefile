@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -W 
+CFLAGS=-Wall -W -g 
 UNAME=$(shell uname)
 PROJECTDIR=..
 

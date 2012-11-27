@@ -80,6 +80,8 @@ int main(int argc, char *argv[]){
     struct sockaddr_in tmp;
     tmp.sin_family = AF_INET;
     tmp.sin_port = htons(port);
+    server.sin_family = AF_INET;
+    server.sin_port = htons(port);
 
     for(int i = 0 ; i < (argc-1) ; i+=2){
         strcpy(hostname, argv[i+1]);
@@ -100,7 +102,8 @@ int main(int argc, char *argv[]){
     // bind the socket to our addrinfo
     err = bind(s, (struct sockaddr*)&server, sizeof server);
     if (err < 0){
-        perror("bind failed\n");
+        perror("bind failed");
+        exit(1);
     }
 
     // create default channel Common
