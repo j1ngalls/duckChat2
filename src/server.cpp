@@ -15,6 +15,7 @@
 // C++ includes
 #include <string>
 #include <map>
+#include <list>
 #include <iostream>
 
 // Local includes
