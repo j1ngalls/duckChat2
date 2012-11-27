@@ -50,12 +50,16 @@ struct sockaddr_in server;  // OUR SERVER sockaddr struct
 char ourhostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
 int ourport;                   // port number of our server
 
-unameTosockaddr_t                usernames;         //<username, sockaddr_in of user>
-map<string,int>                 active_usernames;   //<username, [0-inactive, 1-active] >
-map<string,string>              rev_usernames;      //<ip+port in string, username>
-map<string,unameTosockaddr_t>   channels;           //<channel, mapsockaddr_in of user>>
-map<string,unameTosockaddr_t>   channels_server;    //
-list<struct sockaddr_in>        nearby_servers;     // the servers we are connected to
+//<username, sockaddr_in of user>
+unameTosockaddr_t   usernames;              // holds users and their sockaddr_in
+//<ip+port, username> 
+map<string,string>  rev_usernames;          // holds users that have logged in and their ip+port in string form
+//<username, [0-inactive, 1-active]>
+map<string,int>     active_usernames;       // holds users that have logged in and their activity status
+map<string,unameTosockaddr_t>   channels;   // holds channels the users who have joined that channel        
+//<channel, mapsockaddr_in of user>>        
+map<string, list<struct sockaddr_in> >  channels_server;    // holds the channels and the servers that have joined that channel
+list<struct sockaddr_in>        nearby_servers;             // the servers we are connected to
 
 int main(int argc, char *argv[]){
     
@@ -370,16 +374,15 @@ void handle_join_message(void *data, struct sockaddr_in sock)
     //get message fields
     struct request_join* msg;
     msg = (struct request_join*)data;
-
+    
     string channel = msg->req_channel;
-
     string ip = inet_ntoa(sock.sin_addr);
-
     int srcport = sock.sin_port;
-
     char port_str[6];
     sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
+
+    // need the check if the server exist on any other channel
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
@@ -401,7 +404,25 @@ void handle_join_message(void *data, struct sockaddr_in sock)
         active_usernames[username] = 1;
 
         if (channel_iter == channels.end()){
-            //channel not found
+    
+            //channel not found, do s2s shit
+
+            // attempt to locate other servers connected to the channel
+
+            // pack a message with ID and channel name
+            struct s2s_join join_msg;
+            int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+            strncpy(join_msg.channel, channel, CHANNEL_MAX);
+            join_msg.s2s_type = S2S_JOIN
+             
+            list<struct sockaddr_in> it;
+            
+            // send to all nearby servers
+            for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
+                sendto(sockfd, &join_msg, sizeof(join_msg), 0, ((struct sockaddr*)it)->ai_addr, ((struct sockaddr*)it)->ai_addrlen);            
+            } 
+        
+            // add the channel
             unameTosockaddr_t new_channel_users;
             new_channel_users[username] = sock;
             channels[channel] = new_channel_users;
@@ -818,12 +839,84 @@ void handle_keep_alive_message(struct sockaddr_in sock)
 }
 
 void handle_s_join(void *data, struct sockaddr_in sock){
+    
+    // Send join message to all adjacent servers
+    
+    // make it easy to access msg crap
+    struct s2s_say *msg;
+    msg = (struct s2s_say*) data;
+
+    // initialize all the message crap
+    long int uniqueID = msg->s2s_uniqueID;
+    string channel  = msg->s2s_channel;
+    
+    // initialize all of the ipaddr and port stuff
+    string ip = inet_ntoa(sock.sin_addr);
+    int srcport = sock.sin_port;
+    char port_str[6];
+    sprintf(port_str, "%d", srcport);
+    string key = ip + "." + port_str;
+
+    //check whether key is in rev_usernames
+    map <string,string> :: iterator iter;
+
+    // print debug message 
+    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+        << " recv S2S Join " << channel << endl;
+
+    
 }
 
 void handle_s_leave(void *data, struct sockaddr_in sock){
+   
+    // make it easy to access msg crap
+    struct s2s_say *msg;
+    msg = (struct s2s_say*) data;
+
+    // initialize all the message crap
+    long int uniqueID = msg->s2s_uniqueID;
+    string channel  = msg->s2s_channel;
+    
+    // initialize all of the ipaddr and port stuff
+    string ip = inet_ntoa(sock.sin_addr);
+    int srcport = sock.sin_port;
+    char port_str[6];
+    sprintf(port_str, "%d", srcport);
+    string key = ip + "." + port_str;
+
+    //check whether key is in rev_usernames
+    map <string,string> :: iterator iter;
+
+    // print debug message 
+    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+        << " recv S2S Leave " << channel << endl;
 }
 
 void handle_s_say(void *data, struct sockaddr_in sock){
+   
+    // make it easy to access msg crap
+    struct s2s_say *msg;
+    msg = (struct s2s_say*) data;
+
+    // initialize all the message crap
+    long int uniqueID = msg->s2s_uniqueID;
+    string channel  = msg->s2s_channel;
+    string username = msg->s2s_username;
+    string text     = msg->s2s_text; 
+    
+    // initialize all of the ipaddr and port stuff
+    string ip = inet_ntoa(sock.sin_addr);
+    int srcport = sock.sin_port;
+    char port_str[6];
+    sprintf(port_str, "%d", srcport);
+    string key = ip + "." + port_str;
+
+    //check whether key is in rev_usernames
+    map <string,string> :: iterator iter;
+
+    // print debug message 
+    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+        << " recv S2S Say " << username << " " << channel << "\"" << text << "\"" << endl;
 }
 
 void send_error_message(struct sockaddr_in sock, string error_msg)
