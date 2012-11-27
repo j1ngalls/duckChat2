@@ -49,21 +49,22 @@ struct sockaddr_in server;  // OUR SERVER sockaddr struct
 char hostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
 int port;                   // port number of our server
 
-unameTosockaddr_t                usernames;          //<username, sockaddr_in of user>
-map<string,int>             active_usernames;   //<username, [0-inactive, 1-active] >
-map<string,string>          rev_usernames;      //<ip+port in string, username>
-map<string,unameTosockaddr_t>    channels;           //<channel, mapsockaddr_in of user>>
+unameTosockaddr_t                usernames;         //<username, sockaddr_in of user>
+map<string,int>                 active_usernames;   //<username, [0-inactive, 1-active] >
+map<string,string>              rev_usernames;      //<ip+port in string, username>
+map<string,unameTosockaddr_t>   channels;           //<channel, mapsockaddr_in of user>>
+map<string,unameTosockaddr_t>   channels_server;    //
+list<struct sockaddr_in>        nearby_servers;     // the servers we are connected to
 
 int main(int argc, char *argv[]){
+    
+    int err;
 
     // check user entered correct commandline arguments
     if (argc < 3){
         printf("Usage: %s domain_name port_num [serverIPs] [serverPort]\n", argv[0]);
         exit(1);
     }
-
-    strcpy(hostname, argv[1]);
-    port = atoi(argv[2]);
 
     // make socket
     s = socket(PF_INET, SOCK_DGRAM, 0);
@@ -72,18 +73,28 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    struct hostent     *he;
+    // get all of the host information for our server and the servers we are
+    // connecting to.
+    struct hostent *he;
+    struct sockaddr_in tmp;
+    tmp.sin_family = AF_INET;
+    tmp.sin_port = htons(port);
 
-    server.sin_family = AF_INET;
-    server.sin_port = htons(port);
+    for(int i = 0 ; i < argc ; i+=2){
+        strcpy(hostname, argv[i+1]);
+        port = atoi(argv[i+2]);
 
-    if ((he = gethostbyname(hostname)) == NULL) {
-        puts("error resolving hostname..");
-        exit(1);
+        if ((he = gethostbyname(hostname)) == NULL) {
+            puts("error resolving hostname..");
+            exit(1);
+        }
+        memcpy(&tmp.sin_addr, he->h_addr_list[0], he->h_length);
+        
+        if(i == 0) // this is OUR server info
+           memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length); 
+        else
+            nearby_servers.push_back(tmp);            
     }
-    memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
-
-    int err;
 
     // bind the socket to our addrinfo
     err = bind(s, (struct sockaddr*)&server, sizeof server);
