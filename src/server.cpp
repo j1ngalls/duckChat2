@@ -81,7 +81,7 @@ int main(int argc, char *argv[]){
     tmp.sin_family = AF_INET;
     tmp.sin_port = htons(port);
 
-    for(int i = 0 ; i < argc ; i+=2){
+    for(int i = 0 ; i < (argc-1) ; i+=2){
         strcpy(hostname, argv[i+1]);
         port = atoi(argv[i+2]);
 
