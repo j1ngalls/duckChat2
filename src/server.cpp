@@ -309,7 +309,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     rev_usernames[key] = username;
 
     // print debug message
-    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
         << " recv Request Login (from " << username << ")"  << endl;
 }
 
