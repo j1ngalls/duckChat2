@@ -47,8 +47,8 @@ typedef map<string, struct sockaddr_in> unameTosockaddr_t; //<username, sockaddr
 
 int s;                      // socket for listening
 struct sockaddr_in server;  // OUR SERVER sockaddr struct
-char hostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
-int port;                   // port number of our server
+char ourhostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
+int ourport;                   // port number of our server
 
 unameTosockaddr_t                usernames;         //<username, sockaddr_in of user>
 map<string,int>                 active_usernames;   //<username, [0-inactive, 1-active] >
@@ -74,29 +74,33 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    // get all of the host information for our server and the servers we are
-    // connecting to.
-    struct hostent *he;
-    struct sockaddr_in tmp;
-    tmp.sin_family = AF_INET;
-    tmp.sin_port = htons(port);
+    // establish hostname and port for OUR server, also initilize our server
+    // sockaddr_in
+    ourport = atoi(argv[2]);
+    strcpy(ourhostname, argv[1]);
     server.sin_family = AF_INET;
-    server.sin_port = htons(port);
+    server.sin_port = htons(ourport);
+    
+    // get the shit for our server and all of the other nearby servers
+    struct hostent     *he;
+    struct sockaddr_in  tmp; 
+    tmp.sin_family = AF_INET;
 
-    for(int i = 0 ; i < (argc-1) ; i+=2){
-        strcpy(hostname, argv[i+1]);
+    for(int i=0; i < (argc-1) ; i+=2){
         port = atoi(argv[i+2]);
+        tmp.sin_port = htons(port);
 
         if ((he = gethostbyname(hostname)) == NULL) {
             puts("error resolving hostname..");
             exit(1);
         }
-        memcpy(&tmp.sin_addr, he->h_addr_list[0], he->h_length);
-        
-        if(i == 0) // this is OUR server info
-           memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length); 
-        else
-            nearby_servers.push_back(tmp);            
+
+        if(i == 0)    
+            memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
+        else{
+            memcpy(&tmp.sin_addr, he->h_addr_list[0], he->h_length);
+            nearby_servers.push_back(tmp);
+        }
     }
 
     // bind the socket to our addrinfo
@@ -302,7 +306,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     rev_usernames[key] = username;
 
     // print debug message
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request Login (from " << username << ")"  << endl;
 }
 
@@ -353,7 +357,7 @@ void handle_logout_message(struct sockaddr_in sock){
         active_usernames.erase(active_user_iter);
 
         // print debug message
-        cout << hostname << ":" << port << ip << ":" << srcport 
+        cout << ourhostname << ":" << ourport << ip << ":" << srcport 
             << " recv Request Logout (from " << username << ")"  << endl;
     }
 }
@@ -404,7 +408,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             channels[channel][username] = sock;
         
         // print debug message 
-        cout << hostname << ":" << port << ip << ":" << srcport 
+        cout << ourhostname << ":" << ourport << ip << ":" << srcport 
             << " recv Request Join " << channel << " (from " << username << ")"  << endl;
     }
 }
@@ -436,7 +440,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request Leave " << channel  << endl;
 
     iter = rev_usernames.find(key);
@@ -512,7 +516,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
     map <string,string> :: iterator iter;
     
     // print debug message 
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request Say " << channel << " \"" << text << "\"" << endl;
 
     iter = rev_usernames.find(key);
@@ -603,7 +607,7 @@ void handle_list_message(struct sockaddr_in sock)
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request List " << endl;
 
     iter = rev_usernames.find(key);
@@ -701,7 +705,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request Who " << channel << endl;
 
     iter = rev_usernames.find(key);
@@ -791,7 +795,7 @@ void handle_keep_alive_message(struct sockaddr_in sock)
     string key = ip + "." +port_str;
     
     // print debug message 
-    cout << hostname << ":" << port << ip << ":" << srcport 
+    cout << ourhostname << ":" << ourport << ip << ":" << srcport 
         << " recv Request Keep_Alive " << endl;
 
     //check whether key is in rev_usernames
