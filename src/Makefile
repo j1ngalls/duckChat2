@@ -8,7 +8,7 @@ PROJECTDIR=..
 #LOADLIBES= -lnsl -lresolv
 #endif
 #ifeq ($(UNAME), SunOS) # on IX
-LOADLIBES= -lnsl -lsocket -lresolv
+LOADLIBES= -lnsl #-lsocket -lresolv
 #endif
 
 all: client server

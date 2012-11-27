@@ -84,9 +84,12 @@ int main(int argc, char *argv[]){
     // get the shit for our server and all of the other nearby servers
     struct hostent     *he;
     struct sockaddr_in  tmp; 
+    int port;
+    char hostname[HOSTNAME_MAX];    
     tmp.sin_family = AF_INET;
 
     for(int i=0; i < (argc-1) ; i+=2){
+        strcpy(hostname, argv[i+1]);
         port = atoi(argv[i+2]);
         tmp.sin_port = htons(port);
 
