@@ -117,7 +117,7 @@ int main(int argc, char *argv[]){
             }
     
             our_port = tmp_port;
-            strcpy(our_hostname, inet_ntoa(tmp_serv));
+            strcpy(our_hostname, inet_ntoa(tmp_serv.sin_addr));
             memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
         
         }else{ // nearby (NOT ours)
