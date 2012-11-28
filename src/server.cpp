@@ -417,6 +417,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
         active_usernames[username] = 1;
 
         if (channel_iter == channels.end()){
+            printf("Going to Broadcasting to Nearby_server!!!\n");
     
             //channel not found, do s2s shit
             // attempt to locate other servers connected to the channel
