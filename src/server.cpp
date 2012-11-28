@@ -73,7 +73,7 @@ int main(int argc, char *argv[]){
     }
 
     // make socket
-    s = socket(PF_INET, SOCK_DGRAM, 0);
+    tmp_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
     if (s < 0){
         perror ("socket() failed\n");
         exit(1);
@@ -88,10 +88,6 @@ int main(int argc, char *argv[]){
     char                            tmp_hostname[HOSTNAME_MAX];    
     struct sockaddr_in              tmp_serv;       //
     
-    // establish hostname and port for OUR server, also initilize our tmp_server info
-    tmp_serv.sin_family = AF_INET;
-    tmp_serv.sin_port = htons(ourport);
-
     // step through all of the command line argument hostname/port pairs
     for(int i=0; i < (argc-1) ; i+=2){
     
@@ -133,10 +129,9 @@ int main(int argc, char *argv[]){
         
         }else{ // nearby (NOT ours)
             memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-            nearby_servers.push_back(pair<tmp_sockfd,tmp_serv>);
+            nearby_servers.push_back(make_pair(tmp_sockfd, tmp_serv));
         }
     }
-
 
     // create default channel Common
     string default_channel = "Common";
