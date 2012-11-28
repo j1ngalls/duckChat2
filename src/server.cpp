@@ -412,14 +412,14 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // pack a message with ID and channel name
             struct s2s_join join_msg;
             int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-            strncpy(join_msg.s2s_channel, channel, CHANNEL_MAX);
+            strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
             join_msg.s2s_type = S2S_JOIN;
              
             list<struct sockaddr_in>::iterator it;
             
             // send to all nearby servers
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(sockfd, &join_msg, sizeof(join_msg), 0, ((struct sockaddr*)it)->ai_addr, ((struct sockaddr*)it)->ai_addrlen);            
+                sendto(sockfd, &join_msg, sizeof(join_msg), 0, it->ai_addr, ((struct sockaddr*)it)->ai_addrlen);            
             } 
         
             // add the channel
