@@ -104,7 +104,7 @@ int main(int argc, char *argv[]){
 
             // ask the OS for a socket FD
             our_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
-            if (tmp_sockfd < 0){
+            if (our_sockfd < 0){
                 perror ("socket() failed");
                 exit(1);
             }
