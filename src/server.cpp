@@ -323,7 +323,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
 
     // print debug message
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
-        << " recv Request Login (from " << username << ")"  << endl;
+        << " recv Request Login" << endl;
 }
 
 void handle_logout_message(struct sockaddr_in sock){
@@ -340,9 +340,12 @@ void handle_logout_message(struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     iter = rev_usernames.find(key);
-    if (iter == rev_usernames.end() ){
-
-        //send an error message saying not logged in
+        
+    // print debug message
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
+            << " recv Request Logout" << endl;
+    
+    if (iter == rev_usernames.end() ){ // if the user was not in our list, send not logged in
         send_error_message(sock, "Not logged in");
 
     }else{
@@ -372,9 +375,6 @@ void handle_logout_message(struct sockaddr_in sock){
         active_user_iter = active_usernames.find(username);
         active_usernames.erase(active_user_iter);
 
-        // print debug message
-        cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
-            << " recv Request Logout (from " << username << ")"  << endl;
     }
 }
 
@@ -391,6 +391,10 @@ void handle_join_message(void *data, struct sockaddr_in sock)
     sprintf(port_str, "%d", srcport);
     string key = ip + "." +port_str;
 
+    // print debug message
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
+         << " recv Request Join " << channel << endl;
+    
     // need the check if the server exist on any other channel
 
     //check whether key is in rev_usernames
@@ -426,7 +430,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             list<pair<string,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
                 sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
-                printf("Broadcasting to Nearby_server: %s", it->first.c_str());
+                printf("Broadcasting to Nearby_server: %s\n", it->first.c_str());
             } 
         
             // add the channel
@@ -438,9 +442,6 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             //channel already exits
             channels[channel][username] = sock;
         
-        // print debug message 
-        cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
-            << " recv Request Join " << channel << " (from " << username << ")"  << endl;
     }
 }
 
