@@ -150,7 +150,7 @@ int main(int argc, char *argv[]){
 
         time(&t1);
 
-        rc = select(s+1, &fds, NULL, NULL, &tv);
+        rc = select(our_sockfd+1, &fds, NULL, NULL, &tv);
         if (rc < 0)
             printf("error in select\n");
         else{
@@ -425,7 +425,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // send to all nearby servers
             list<pair<int,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(it.first, &join_msg, sizeof(join_msg), 0, it.second->sin_addr, it.second->);            
+                sendto(it->first, &join_msg, sizeof(join_msg), 0, it->second->sin_addr, it->second->);            
             } 
         
             // add the channel
@@ -605,7 +605,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
 
                     struct sockaddr_in send_sock = channel_user_iter->second;
 
-                    bytes = sendto(s, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+                    bytes = sendto(our_sockfd, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
 
                     if (bytes < 0)
                         perror("Message failed\n"); //error
@@ -700,7 +700,7 @@ void handle_list_message(struct sockaddr_in sock)
                     //cout << username <<endl;
         struct sockaddr_in send_sock = sock;
 
-        bytes = sendto(s, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+        bytes = sendto(our_sockfd, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
 
         if (bytes < 0)
             perror("Message failed\n"); //error
@@ -799,7 +799,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
             struct sockaddr_in send_sock = sock;
 
-            bytes = sendto(s, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+            bytes = sendto(our_sockfd, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
 
             if (bytes < 0)
                 perror("Message failed\n"); //error
@@ -943,7 +943,7 @@ void send_error_message(struct sockaddr_in sock, string error_msg)
 
     struct sockaddr_in send_sock = sock;
 
-    bytes = sendto(s, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+    bytes = sendto(our_sockfd, send_data, len, 0, (struct sockaddr*)&send_sock, sizeof send_sock);
 
     if (bytes < 0)
         perror("Message failed\n"); //error
