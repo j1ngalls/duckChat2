@@ -77,7 +77,6 @@ int main(int argc, char *argv[]){
     struct hostent                  *tmp_hostent;
     pair<int, struct sockaddr_in>   tmp_sockServ;   //  this holds the pair before we decide if it is our server or nearby 
     int                             tmp_port;       //  
-    int                             tmp_sockfd;       //
     char                            tmp_hostname[HOSTNAME_MAX];    
     struct sockaddr_in              tmp_serv;       //
     
@@ -98,25 +97,25 @@ int main(int argc, char *argv[]){
         tmp_serv.sin_port = htons(tmp_port);
         tmp_serv.sin_family = AF_INET;
         memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-
-        // ask the OS for a socket FD
-        tmp_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
-        if (tmp_sockfd < 0){
-            perror ("socket() failed");
-            exit(1);
-        }
-    
-        // bind the socket to our addrinfo
-        ret = bind(tmp_sockfd, (struct sockaddr*)&tmp_serv, sizeof(tmp_serv));
-        if (ret < 0){
-            perror("bind failed");
-            exit(1);
-        }
         
         // Save the server socket and other information to our nearby_server list
         // or to the "our" server info and socket
         if(i == 0){ // "our" server
-            our_sockfd = tmp_sockfd;
+
+            // ask the OS for a socket FD
+            our_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+            if (tmp_sockfd < 0){
+                perror ("socket() failed");
+                exit(1);
+            }
+        
+            // bind the socket to our addrinfo
+            ret = bind(our_sockfd, (struct sockaddr*)&tmp_serv, sizeof(tmp_serv));
+            if (ret < 0){
+                perror("bind failed");
+                exit(1);
+            }
+    
             our_port = tmp_port;
             strcpy(our_hostname, tmp_hostname);
             memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
