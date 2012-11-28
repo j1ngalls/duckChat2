@@ -146,7 +146,7 @@ int main(int argc, char *argv[]){
         fd_set fds;
 
         FD_ZERO(&fds);
-        FD_SET(s, &fds);
+        FD_SET(our_sockfd, &fds);
 
         time(&t1);
 
@@ -253,7 +253,7 @@ void handle_socket_input(){
     data = &recv_text;
     len = sizeof recv_text;
 
-    bytes = recvfrom(s, data, len, 0, (struct sockaddr*)&recv_client, &fromlen);
+    bytes = recvfrom(our_sockfd, data, len, 0, (struct sockaddr*)&recv_client, &fromlen);
 
     if (bytes < 0)
         perror ("recvfrom failed\n");
@@ -415,19 +415,17 @@ void handle_join_message(void *data, struct sockaddr_in sock)
         if (channel_iter == channels.end()){
     
             //channel not found, do s2s shit
-
             // attempt to locate other servers connected to the channel
 
             // pack a message with ID and channel name
             struct s2s_join join_msg;
             strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
             join_msg.s2s_type = S2S_JOIN;
-             
-            list<struct sockaddr_in>::iterator it;
             
             // send to all nearby servers
+            list<pair<int,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(sockfd, &join_msg, sizeof(join_msg), 0, it->sin_addr, it->sin_addrlen);            
+                sendto(it.first, &join_msg, sizeof(join_msg), 0, it.second->sin_addr, it.second->);            
             } 
         
             // add the channel
