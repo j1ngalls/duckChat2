@@ -60,7 +60,7 @@ map<string,int>     active_usernames;       // holds users that have logged in a
 map<string,unameTosockaddr_t>   channels;   // holds channels the users who have joined that channel        
 //<channel, mapsockaddr_in of user>>        
 map<string, list<struct sockaddr_in> >      channels_server;    // holds the channels and the servers that have joined that channel
-list< pair<int, struct sockaddr_in> >       nearby_servers;     // <sockfd,addrinfo> the servers we are connected to
+list< pair<string, struct sockaddr_in> >       nearby_servers;     // <hostname,addrinfo> the servers we are connected to
 
 int main(int argc, char *argv[]){
     
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
         
         }else{ // nearby (NOT ours)
             memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-            nearby_servers.push_back(make_pair(tmp_sockfd, tmp_serv));
+            nearby_servers.push_back(make_pair(tmp_hostname, tmp_serv));
         }
     }
 
@@ -426,8 +426,8 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // send to all nearby servers
             list<pair<int,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(it->first, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
-                printf("Broadcasting to Nearby_server\n");
+                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
+                printf("Broadcasting to Nearby_server: %s", it->first);
             } 
         
             // add the channel
