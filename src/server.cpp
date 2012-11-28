@@ -126,10 +126,13 @@ int main(int argc, char *argv[]){
         }
     }
 
+    /* This should not be needed because the first client should request common
+    this will fix the server not sending s2s join for common channel
     // create default channel Common
     string default_channel = "Common";
     unameTosockaddr_t default_channel_users;
     channels[default_channel] = default_channel_users;
+    */
 
     // create struct for 2 minute timout
     struct timeval tv;
@@ -389,7 +392,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
     int srcport = sock.sin_port;
     char port_str[6];
     sprintf(port_str, "%d", srcport);
-    string key = ip + "." +port_str;
+    string key = ip + "." + port_str;
 
     // print debug message
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
@@ -399,23 +402,20 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
-
     iter = rev_usernames.find(key);
-    if (iter == rev_usernames.end() ){
-        
-        //ip+port not recognized - send an error message
+    if (iter == rev_usernames.end() ){ //ip+port not recognized - send an error message
         send_error_message(sock, "Not logged in");
 
     }else{
 
-        string username = rev_usernames[key];
-
-        map<string,unameTosockaddr_t>::iterator channel_iter;
-
-        channel_iter = channels.find(channel);
-
+        string username = rev_usernames[key]; // get their username based on key
         active_usernames[username] = 1;
 
+        // lookup the channel
+        map<string,unameTosockaddr_t>::iterator channel_iter; 
+        channel_iter = channels.find(channel);
+
+        // if the channel does not exist in our list of channels
         if (channel_iter == channels.end()){
             printf("Going to Broadcasting to Nearby_server!!!\n");
     
