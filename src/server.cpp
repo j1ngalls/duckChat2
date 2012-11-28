@@ -427,7 +427,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             list<pair<string,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
                 sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
-                printf("Broadcasting to Nearby_server: %s", it->first);
+                printf("Broadcasting to Nearby_server: %s", it->first.c_str());
             } 
         
             // add the channel
