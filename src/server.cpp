@@ -425,7 +425,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // send to all nearby servers
             list<pair<int,struct sockaddr_in> >::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(it->first, &join_msg, sizeof(join_msg), 0, it->second.sin_addr, sizeof(it->second));            
+                sendto(it->first, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
             } 
         
             // add the channel
