@@ -292,6 +292,7 @@ void handle_socket_input(){
             handle_keep_alive_message(recv_client);
         
         }else if (message_type == S2S_JOIN){
+            cout << "Message type is s2s join" << endl;
             handle_s_join(data, recv_client);
         
         }else if (message_type == S2S_LEAVE){
@@ -417,7 +418,6 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
         // if the channel does not exist in our list of channels
         if (channel_iter == channels.end()){
-            printf("Going to Broadcasting to Nearby_server!!!\n");
     
             //channel not found, do s2s shit
             // attempt to locate other servers connected to the channel
@@ -872,7 +872,6 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     // print debug message 
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Join " << channel << endl;
-
     
 }
 
