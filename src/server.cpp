@@ -88,15 +88,16 @@ int main(int argc, char *argv[]){
         strcpy(tmp_hostname, argv[i+1]);
         tmp_port = atoi(argv[i+2]);
         
-        // set up the tmp_serv info (for resolving in a second)
-        tmp_serv.sin_port = htons(tmp_port);
-        tmp_serv.sin_family = AF_INET;
-
         // resolve information about host
         if ((tmp_hostent = gethostbyname(tmp_hostname)) == NULL) {
             cout << "error resolving hostname.." << endl;
             exit(1);
         }
+
+        // set up the tmp_serv info (for resolving in a second)
+        tmp_serv.sin_port = htons(tmp_port);
+        tmp_serv.sin_family = AF_INET;
+        memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
 
         // ask the OS for a socket FD
         tmp_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
