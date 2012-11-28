@@ -72,13 +72,6 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    // make socket
-    tmp_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
-    if (s < 0){
-        perror ("socket() failed\n");
-        exit(1);
-    }
-
     // get the shit for our server and all of the other nearby servers,
     // this must include binding sockets and saving the resulting sockets.
     struct hostent                  *tmp_hostent;
