@@ -1,0 +1,3 @@
+SENDTO sendto
+call sendto with sockaddr_in's in the following way
+sendto(message, sizeof(message), 0, sockaddrstruct->sin_addr, sizeof(sockaddrstruct));
