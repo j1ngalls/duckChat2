@@ -45,10 +45,11 @@ void send_error_message(struct sockaddr_in sock, string error_msg);
 /* The type for our channel map */
 typedef map<string, struct sockaddr_in> unameTosockaddr_t; //<username, sockaddr_in of user
 
-int s;                      // socket for listening
-struct sockaddr_in server;  // OUR SERVER sockaddr struct
-char ourhostname[HOSTNAME_MAX];// name that we resolve for our IP Addr
-int ourport;                   // port number of our server
+// information about our server
+int                 our_sockfd;                 // socket for listening
+struct sockaddr_in  our_server;                  // OUR SERVER sockaddr struct
+char                our_hostname[HOSTNAME_MAX];  // name that we resolve for our IP Addr
+int                 our_port;                    // port number of our server
 
 //<username, sockaddr_in of user>
 unameTosockaddr_t   usernames;              // holds users and their sockaddr_in
@@ -58,12 +59,12 @@ map<string,string>  rev_usernames;          // holds users that have logged in a
 map<string,int>     active_usernames;       // holds users that have logged in and their activity status
 map<string,unameTosockaddr_t>   channels;   // holds channels the users who have joined that channel        
 //<channel, mapsockaddr_in of user>>        
-map<string, list<struct sockaddr_in> >  channels_server;    // holds the channels and the servers that have joined that channel
-list<struct sockaddr_in>        nearby_servers;             // the servers we are connected to
+map<string, list<struct sockaddr_in> >      channels_server;    // holds the channels and the servers that have joined that channel
+list< pair<int, struct sockaddr_in> >       nearby_servers;     // <sockfd,addrinfo> the servers we are connected to
 
 int main(int argc, char *argv[]){
     
-    int err;
+    int ret;    // return value for error checking
 
     // check user entered correct commandline arguments
     if (argc < 3){
@@ -78,44 +79,64 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    // establish hostname and port for OUR server, also initilize our server
-    // sockaddr_in
-    ourport = atoi(argv[2]);
-    strcpy(ourhostname, argv[1]);
-    server.sin_family = AF_INET;
-    server.sin_port = htons(ourport);
+    // get the shit for our server and all of the other nearby servers,
+    // this must include binding sockets and saving the resulting sockets.
+    struct hostent                  *tmp_hostent;
+    pair<int, struct sockaddr_in>   tmp_sockServ;   //  this holds the pair before we decide if it is our server or nearby 
+    int                             tmp_port;       //  
+    int                             tmp_sockfd;       //
+    char                            tmp_hostname[HOSTNAME_MAX];    
+    struct sockaddr_in              tmp_serv;       //
     
-    // get the shit for our server and all of the other nearby servers
-    struct hostent     *he;
-    struct sockaddr_in  tmp; 
-    int port;
-    char hostname[HOSTNAME_MAX];    
-    tmp.sin_family = AF_INET;
+    // establish hostname and port for OUR server, also initilize our tmp_server info
+    tmp_serv.sin_family = AF_INET;
+    tmp_serv.sin_port = htons(ourport);
 
+    // step through all of the command line argument hostname/port pairs
     for(int i=0; i < (argc-1) ; i+=2){
-        strcpy(hostname, argv[i+1]);
-        port = atoi(argv[i+2]);
-        tmp.sin_port = htons(port);
+    
+        // set temporary hostname and port number
+        strcpy(tmp_hostname, argv[i+1]);
+        tmp_port = atoi(argv[i+2]);
+        
+        // set up the tmp_serv info (for resolving in a second)
+        tmp_serv.sin_port = htons(tmp_port);
+        tmp_serv.sin_family = AF_INET;
 
-        if ((he = gethostbyname(hostname)) == NULL) {
-            puts("error resolving hostname..");
+        // resolve information about host
+        if ((tmp_hostent = gethostbyname(tmp_hostname)) == NULL) {
+            cout << "error resolving hostname.." << endl;
             exit(1);
         }
 
-        if(i == 0)    
-            memcpy(&server.sin_addr, he->h_addr_list[0], he->h_length);
-        else{
-            memcpy(&tmp.sin_addr, he->h_addr_list[0], he->h_length);
-            nearby_servers.push_back(tmp);
+        // ask the OS for a socket FD
+        tmp_sockfd = socket(PF_INET, SOCK_DGRAM, 0);
+        if (tmp_sockfd < 0){
+            perror ("socket() failed");
+            exit(1);
+        }
+    
+        // bind the socket to our addrinfo
+        ret = bind(tmp_sockfd, (struct sockaddr*)&tmp_serv, sizeof(tmp_serv));
+        if (ret < 0){
+            perror("bind failed");
+            exit(1);
+        }
+        
+        // Save the server socket and other information to our nearby_server list
+        // or to the "our" server info and socket
+        if(i == 0){ // "our" server
+            our_sockfd = tmp_sockfd;
+            our_port = tmp_port;
+            strcpy(our_hostname, tmp_hostname);
+            memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
+        
+        }else{ // nearby (NOT ours)
+            memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
+            nearby_servers.push_back(pair<tmp_sockfd,tmp_serv>);
         }
     }
 
-    // bind the socket to our addrinfo
-    err = bind(s, (struct sockaddr*)&server, sizeof server);
-    if (err < 0){
-        perror("bind failed");
-        exit(1);
-    }
 
     // create default channel Common
     string default_channel = "Common";
@@ -313,7 +334,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     rev_usernames[key] = username;
 
     // print debug message
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request Login (from " << username << ")"  << endl;
 }
 
@@ -364,7 +385,7 @@ void handle_logout_message(struct sockaddr_in sock){
         active_usernames.erase(active_user_iter);
 
         // print debug message
-        cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+        cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
             << " recv Request Logout (from " << username << ")"  << endl;
     }
 }
@@ -411,7 +432,6 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
             // pack a message with ID and channel name
             struct s2s_join join_msg;
-            int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
             strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
             join_msg.s2s_type = S2S_JOIN;
              
@@ -432,7 +452,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             channels[channel][username] = sock;
         
         // print debug message 
-        cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+        cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
             << " recv Request Join " << channel << " (from " << username << ")"  << endl;
     }
 }
@@ -464,7 +484,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request Leave " << channel  << endl;
 
     iter = rev_usernames.find(key);
@@ -540,7 +560,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
     map <string,string> :: iterator iter;
     
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request Say " << channel << " \"" << text << "\"" << endl;
 
     iter = rev_usernames.find(key);
@@ -631,7 +651,7 @@ void handle_list_message(struct sockaddr_in sock)
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request List " << endl;
 
     iter = rev_usernames.find(key);
@@ -729,7 +749,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request Who " << channel << endl;
 
     iter = rev_usernames.find(key);
@@ -819,7 +839,7 @@ void handle_keep_alive_message(struct sockaddr_in sock)
     string key = ip + "." +port_str;
     
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv Request Keep_Alive " << endl;
 
     //check whether key is in rev_usernames
@@ -861,7 +881,7 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Join " << channel << endl;
 
     
@@ -888,7 +908,7 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Leave " << channel << endl;
 }
 
@@ -915,7 +935,7 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     map <string,string> :: iterator iter;
 
     // print debug message 
-    cout << ourhostname << ":" << ourport << " " << ip << ":" << srcport 
+    cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Say " << username << " " << channel << "\"" << text << "\"" << endl;
 }
 
