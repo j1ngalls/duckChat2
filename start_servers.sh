@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 #uncomment the topolgy you want. The simple two-server topology is uncommented here.
 
@@ -7,30 +7,36 @@ SERVER=./bin/server
 
 SERVER_NAME=`echo $SERVER | sed 's#.*/\(.*\)#\1#g'`
 
-# Generate a simple two-server topology
-$SERVER localhost 4000 localhost 4001 &
-$SERVER localhost 4001 localhost 4000 & 
 
+
+if [ $1 = "2" ]; then
+    # Generate a simple two-server topologiy
+    echo "Starting 2 servers that are connected"
+    $SERVER localhost 4000 localhost 4001 &
+    $SERVER localhost 4001 localhost 4000 & 
+elif [ $1 = "7" ]; then
 # Generate a capital-H shaped topology
-#$SERVER localhost 4000 localhost 4001 &
-#$SERVER localhost 4001 localhost 4000 localhost 4002 localhost 4003 &
-#$SERVER localhost 4002 localhost 4001 & 
-#$SERVER localhost 4003 localhost 4001 localhost 4005 &
-#$SERVER localhost 4004 localhost 4005 &
-#$SERVER localhost 4005 localhost 4004 localhost 4003 localhost 4006 &
-#$SERVER localhost 4006 localhost 4005 &
-
+    echo "Starting 7 servers in H configuration" 
+    $SERVER localhost 4000 localhost 4001 & 
+    $SERVER localhost 4001 localhost 4000 localhost 4002 localhost 4003 &
+    $SERVER localhost 4002 localhost 4001 & 
+    $SERVER localhost 4003 localhost 4001 localhost 4005 &
+    $SERVER localhost 4004 localhost 4005 &
+    $SERVER localhost 4005 localhost 4004 localhost 4003 localhost 4006 &
+    $SERVER localhost 4006 localhost 4005 &
+elif [ $1 == "9" ]; then
 # Generate a 3x3 grid topology
-#$SERVER localhost 4000 localhost 4001 localhost 4003 &
-#$SERVER localhost 4001 localhost 4000 localhost 4002 localhost 4004 &
-#$SERVER localhost 4002 localhost 4001 localhost 4005 &
-#$SERVER localhost 4003 localhost 4000 localhost 4004 localhost 4006 &
-#$SERVER localhost 4004 localhost 4001 localhost 4003 localhost 4005 localhost 4007 &
-#$SERVER localhost 4005 localhost 4002 localhost 4004 localhost 4008 &
-#$SERVER localhost 4006 localhost 4003 localhost 4007 &
-#$SERVER localhost 4007 localhost 4006 localhost 4004 localhost 4008 &
-#$SERVER localhost 4008 localhost 4005 localhost 4007 &
-
+    echo "Starting 9 servers in 3X3  grid configuration"
+    $SERVER localhost 4000 localhost 4001 localhost 4003 &
+    $SERVER localhost 4001 localhost 4000 localhost 4002 localhost 4004 &
+    $SERVER localhost 4002 localhost 4001 localhost 4005 &
+    $SERVER localhost 4003 localhost 4000 localhost 4004 localhost 4006 &
+    $SERVER localhost 4004 localhost 4001 localhost 4003 localhost 4005 localhost 4007 &
+    $SERVER localhost 4005 localhost 4002 localhost 4004 localhost 4008 &
+    $SERVER localhost 4006 localhost 4003 localhost 4007 &
+    $SERVER localhost 4007 localhost 4006 localhost 4004 localhost 4008 &
+    $SERVER localhost 4008 localhost 4005 localhost 4007 &
+fi
 
 echo "Press ENTER to quit"
 read
