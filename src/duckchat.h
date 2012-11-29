@@ -157,12 +157,12 @@ struct s2s_join {
 
 struct s2s_leave {
         s2s_t s2s_type; /* = S2S_LEAVE */
-        char sts_channel[CHANNEL_MAX]; 
+        char s2s_channel[CHANNEL_MAX]; 
 } packed;
 
 struct s2s_say {
         s2s_t s2s_type; /* = S2S_SAY */
-        long int s2s_uniqueID;        
+        int s2s_uniqueID;        
         char s2s_channel[CHANNEL_MAX];
         char s2s_username[USERNAME_MAX];
         char s2s_text[SAY_MAX];

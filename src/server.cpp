@@ -35,7 +35,6 @@ struct sockaddr_in  our_server;                 // OUR SERVER sockaddr struct
 char                our_hostname[HOSTNAME_MAX]; // name that we resolve for our IP Addr
 int                 our_port;                   // port number of our server
 
-
 /** Data structures that we wish to access from any context **/
 //map from username to User's sockaddr_in
 map< string, struct sockaddr_in >               usernames;          // holds users and their sockaddr_in
@@ -50,12 +49,13 @@ map< string, list<struct sockaddr_in> >         channels_server;    // a map fro
 //list of nearby servers
 list< struct sockaddr_in >                      nearby_servers;     // a list of the nearby servers we are connected to
 //list of random IDs
-list< long int >                                s2s_say_uniqueID;   // a list of unique IDs that will not exceed MAX_UNIQUEID 
+list< int >                                s2s_say_uniqueID;   // a list of unique IDs that will not exceed MAX_UNIQUEID 
 
 
 int main(int argc, char *argv[]){
         
-    int 
+    int
+        devrand_fd,     // the fd that we will use to access a random number 
         ret;            // return value from function calls
 
     struct timeval 
@@ -67,9 +67,16 @@ int main(int argc, char *argv[]){
         elapsed_time;   // ^^
     
     fd_set 
-        fds;         // for call to select
+        fds;            // for call to select
 
-    DBG("EOOO");
+    char 
+        seed[sizeof(unsigned int)];        // holds the seed collected from ura
+    
+    devrand_fd = open("/dev/urand", O_RDONLY);   
+    read(devrand_fd, seed, sizeof(unsigned int));
+    close(devrand_fd);
+    srand((unsigned int)*seed); 
+    DBG("Random number generator should be up!", 0);
 
 // (1) Verify user input
     if (argc < 3){
@@ -135,6 +142,7 @@ int main(int argc, char *argv[]){
     // TODO: Set up a timeout that resends s2s join to all nearby servers that we are on the channel of
     // TODO: Set up a timeout that kicks connected servers if they have not sent a join within the last two minutes
     // set our timeout
+    DBG("Entering main event loop", 0);
     tv.tv_sec = TIMEOUT_CLIENT_USAGE;
     tv.tv_usec = 0;
     while(1){
@@ -263,42 +271,51 @@ void handle_socket_input(){
         request_t message_type = request_msg->req_type;
 
         if (message_type == REQ_LOGIN){
+            DBG("Handling request Login", 0);
             handle_login_message(data, recv_client); 
         
         }else if (message_type == REQ_LOGOUT){
+            DBG("Handling request Logout", 0);
             handle_logout_message(recv_client);
         
         }else if (message_type == REQ_JOIN){
+            DBG("Handling request Join", 0);
             handle_join_message(data, recv_client);
         
         }else if (message_type == REQ_LEAVE){
+            DBG("Handling request Leave", 0);
             handle_leave_message(data, recv_client);
         
         }else if (message_type == REQ_SAY){
+            DBG("Handling request Say", 0);
             handle_say_message(data, recv_client);
         
         }else if (message_type == REQ_LIST){
+            DBG("Handling request List", 0);
             handle_list_message(recv_client);
         
         }else if (message_type == REQ_WHO){
+            DBG("Handling request Who", 0);
             handle_who_message(data, recv_client);
         
         }else if (message_type == REQ_KEEP_ALIVE){
+            DBG("Handling request KeepAlive", 0);
             handle_keep_alive_message(recv_client);
         
         }else if (message_type == S2S_JOIN){
-            cout << "[DEBUG] Handling s2s join" << endl;
+            DBG("Handling s2s request Join", 0);
             handle_s_join(data, recv_client);
         
         }else if (message_type == S2S_LEAVE){
-            cout << "[DEBUG] Handling s2s leave" << endl;
+            DBG("Handling s2s request Leave", 0);
             handle_s_leave(data, recv_client);
         
         }else if (message_type == S2S_SAY){
-            cout << "[DEBUG] Handling s2s say" << endl;
+            DBG("Handling s2s request Say", 0);
             handle_s_say(data, recv_client);
 
         }else
+            DBG("Handling invalid request", 0);
             //send error message to client
             send_error_message(recv_client, "*Unknown command");
     }
@@ -855,11 +872,10 @@ void handle_s_join(void *data, struct sockaddr_in sock){
 
 
     // make it easy to access msg crap
-    struct s2s_say *msg;
-    msg = (struct s2s_say*) data;
+    struct s2s_join *msg;
+    msg = (struct s2s_join*) data;
 
     // initialize all the message crap
-    long int uniqueID = msg->s2s_uniqueID;
     string channel  = msg->s2s_channel;
     
     // initialize all of the ipaddr and port stuff
@@ -881,14 +897,13 @@ void handle_s_join(void *data, struct sockaddr_in sock){
 void handle_s_leave(void *data, struct sockaddr_in sock){
    
     // make it easy to access msg crap
-    struct s2s_say *msg;
-    msg = (struct s2s_say*) data;
+    struct s2s_leave *msg;
+    msg = (struct s2s_leave*) data;
 
     // initialize all the message crap
-    long int uniqueID = msg->s2s_uniqueID;
-    string channel  = msg->s2s_channel;
+    string channel = msg->s2s_channel;
     
-    // initialize all of the ipaddr and port stuff
+    // initialize all of the ipaddr and port stuff from the sender
     string ip = inet_ntoa(sock.sin_addr);
     int srcport = sock.sin_port;
     char port_str[6];
