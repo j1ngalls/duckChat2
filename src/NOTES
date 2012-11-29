@@ -1,3 +1,9 @@
 SENDTO sendto
 call sendto with sockaddr_in's in the following way
 sendto(message, sizeof(message), 0, sockaddrstruct->sin_addr, sizeof(sockaddrstruct));
+
+
+BIND bind
+call bind with sockaddr_in's in the following way
+bind (our_sockfd, (sockaddr*)sockaddr_in, sizeof(sockaddr_in))
+We can cast between sockaddr and sockaddr_in freely!

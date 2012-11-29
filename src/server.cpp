@@ -20,9 +20,14 @@
 
 // Local includes
 #include "duckchat.h"
+#include "server.h"
 
 using namespace std;
 
+// TODO: Random Unique number generation
+/* 
+There is no simple way for a server to generate globally unique identifiers. Therefore, the Imaginarians have agreed to settle for identifiers that are unique with high probability. To accomplish this, servers use their random number generator to create the unique identifiers. Servers must seed their random number generator by reading bytes from /dev/urandom.
+*/
 
 /** Information about our server that we need globaly for error messages **/
 int                 our_sockfd;                 // socket for listening
@@ -49,10 +54,9 @@ list< long int >                                s2s_say_uniqueID;   // a list of
 
 
 int main(int argc, char *argv[]){
-    
+        
     int 
-        ret,            // return value from function calls
-        socket_data;    //TODO:
+        ret;            // return value from function calls
 
     struct timeval 
         tv;             // create struct for select timeout
@@ -64,6 +68,8 @@ int main(int argc, char *argv[]){
     
     fd_set 
         fds;         // for call to select
+
+    DBG("EOOO");
 
 // (1) Verify user input
     if (argc < 3){
@@ -108,6 +114,7 @@ int main(int argc, char *argv[]){
             our_port = tmp_port;
             strcpy(our_hostname, inet_ntoa(tmp_serv.sin_addr));
             memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
+            our_server.sin_family = tmp_serv.sin_family;
         
         }else{ // nearby (NOT ours)
             memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
@@ -117,7 +124,7 @@ int main(int argc, char *argv[]){
     }
     
     // bind the socket to our addrinfo
-    ret = bind(our_sockfd, (struct sockaddr*)&our_serv, sizeof(our_serv));
+    ret = bind(our_sockfd, (struct sockaddr*)&our_server, sizeof(our_server));
     if (ret < 0){
         perror("bind failed");
         exit(1);
@@ -125,6 +132,8 @@ int main(int argc, char *argv[]){
     
 
 // (3) Main event loop for client and s2s requests    
+    // TODO: Set up a timeout that resends s2s join to all nearby servers that we are on the channel of
+    // TODO: Set up a timeout that kicks connected servers if they have not sent a join within the last two minutes
     // set our timeout
     tv.tv_sec = TIMEOUT_CLIENT_USAGE;
     tv.tv_usec = 0;
@@ -420,7 +429,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // send to all nearby servers
             list<struct sockaddr_in>::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it.sin_addr, sizeof(it));            
+                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->sin_addr, sizeof(it));            
             } 
         
             // add the channel
@@ -896,7 +905,8 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
 
 void handle_s_say(void *data, struct sockaddr_in sock){
 
-    //TODO: Check unique identifier against
+    //TODO: Check unique identifier against our list of unique identifiers
+    //          if it matches any in our list then drop the message and send s2s leave to the server received from
   
     //TODO: Forward message to any other S2S server in this channel
     // AND to any interested users
@@ -905,13 +915,12 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     // message is the only one of our nearby servers subscribed to channel,
     //          reply to server that sent this with 's2s_leave'
 
-
  
-    // make it easy to access msg crap
+    // make it easy to access msg content
     struct s2s_say *msg;
     msg = (struct s2s_say*) data;
 
-    // initialize all the message crap
+    // initialize all the message content to local variables
     long int uniqueID = msg->s2s_uniqueID;
     string channel  = msg->s2s_channel;
     string username = msg->s2s_username;

@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -W -g 
+CFLAGS=-Wall -W  
 UNAME=$(shell uname)
 PROJECTDIR=..
 
@@ -13,8 +13,8 @@ LOADLIBES= -lnsl #-lsocket -lresolv
 
 all: client server
 
-#debug: CFLAGS += -g -DDEBUG
-#debug: all
+debug: CFLAGS += -g -DDEBUG
+debug: all
 
 #keep_alive: CFLAGS += -DGRAD
 #keep_alive: all
