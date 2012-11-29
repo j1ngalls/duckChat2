@@ -26,6 +26,7 @@ using namespace std;
 #define MAX_CONNECTIONS 10
 #define HOSTNAME_MAX 100
 #define MAX_MESSAGE_LEN 65536
+#define MAX_UNIQUEID
 
 /* Handler function declarations */
 void handle_socket_input();
@@ -52,15 +53,16 @@ char                our_hostname[HOSTNAME_MAX];  // name that we resolve for our
 int                 our_port;                    // port number of our server
 
 //<username, sockaddr_in of user>
-unameTosockaddr_t   usernames;              // holds users and their sockaddr_in
+unameTosockaddr_t                           usernames;          // holds users and their sockaddr_in
 //<ip+port, username> 
-map<string,string>  rev_usernames;          // holds users that have logged in and their ip+port in string form
+map<string,string>                          rev_usernames;      // holds users that have logged in and their ip+port in string form
 //<username, [0-inactive, 1-active]>
-map<string,int>     active_usernames;       // holds users that have logged in and their activity status
-map<string,unameTosockaddr_t>   channels;   // holds channels the users who have joined that channel        
+map<string,int>                             active_usernames;   // holds users that have logged in and their activity status
+map<string,unameTosockaddr_t>               channels;           // holds channels the users who have joined that channel        
 //<channel, mapsockaddr_in of user>>        
-map<string, list<struct sockaddr_in> >      channels_server;    // holds the channels and the servers that have joined that channel
-list< pair<string, struct sockaddr_in> >       nearby_servers;     // <hostname,addrinfo> the servers we are connected to
+map<string, list<struct sockaddr_in> >      channels_server;    // a map from channel name to the servers that have joined that channel
+list< pair<struct sockaddr_in> >            nearby_servers;     // a list of the nearby servers we are connected to
+list<long int>                              s2s_say_uniqueID;   // a list of unique IDs that will not exceed MAX_UNIQUEID 
 
 int main(int argc, char *argv[]){
     
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]){
         
         }else{ // nearby (NOT ours)
             memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-            nearby_servers.push_back(make_pair(tmp_hostname, tmp_serv));
+            nearby_servers.push_back(tmp_serv);
         }
     }
 
@@ -384,6 +386,9 @@ void handle_logout_message(struct sockaddr_in sock){
 
 void handle_join_message(void *data, struct sockaddr_in sock)
 {
+    // If we are subscribed, everything goes as normal
+    // if we ar NOT subscribed, flood all nearby servers with join message 
+
     //get message fields
     struct request_join* msg;
     msg = (struct request_join*)data;
@@ -400,7 +405,6 @@ void handle_join_message(void *data, struct sockaddr_in sock)
          << " recv Request Join " << channel << endl;
     
     // need the check if the server exist on any other channel
-
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
     iter = rev_usernames.find(key);
@@ -418,20 +422,18 @@ void handle_join_message(void *data, struct sockaddr_in sock)
 
         // if the channel does not exist in our list of channels
         if (channel_iter == channels.end()){
-    
-            //channel not found, do s2s shit
-            // attempt to locate other servers connected to the channel
+            // here we are going to attempt to locate other servers connected to the channel
+            // we do this by flooding all nearby servers with the s2s_join request
 
-            // pack a message with ID and channel name
+            // pack the s2s_join message with ID and channel name
             struct s2s_join join_msg;
             strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
             join_msg.s2s_type = S2S_JOIN;
             
             // send to all nearby servers
-            list<pair<string,struct sockaddr_in> >::iterator it;
+            list<struct sockaddr_in>::iterator it;
             for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->second.sin_addr, sizeof(it->second));            
-                printf("Broadcasting to Nearby_server: %s\n", it->first.c_str());
+                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it.sin_addr, sizeof(it));            
             } 
         
             // add the channel
@@ -524,11 +526,13 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
 void handle_say_message(void *data, struct sockaddr_in sock)
 {
-    //check whether the user is in usernames
-    //if yes check whether channel is in channels
-    //check whether the user is in the channel
-    //if yes send the message to all the members of the channel
-    //if not send an error message to the user
+
+
+    // check whether the user is in usernames
+    // if yes check whether channel is in channels
+    // check whether the user is in the channel
+    // if yes send the message to all the members of the channel and to servers on the channel
+    // if not send an error message to the user
 
     //get message fields
     struct request_say* msg;
@@ -585,7 +589,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
                 send_error_message(sock, "You are not in channel " + channel);
                 cout << "server: " << username << " trying to send a message to channel " << channel  << " where he/she is not a member" << endl;
             
-            }else{
+            }else{ // TODO: Add S2S say message to all servers in channel
                 unameTosockaddr_t existing_channel_users;
                 existing_channel_users = channels[channel];
                 for(channel_user_iter = existing_channel_users.begin(); channel_user_iter != existing_channel_users.end(); channel_user_iter++){
@@ -614,7 +618,6 @@ void handle_say_message(void *data, struct sockaddr_in sock)
                         perror("Message failed\n"); //error
 
                 }
-                cout << "server: " << username << " sends say message in " << channel <<endl;
             }
         }
     }
@@ -848,9 +851,13 @@ void handle_keep_alive_message(struct sockaddr_in sock)
 }
 
 void handle_s_join(void *data, struct sockaddr_in sock){
-    
-    // Send join message to all adjacent servers
-    
+   
+    // (1) check to see if we are subscribed to channel
+    //      end join message flooding
+    // (2) if not, subscribe ourselves to the channel and broadcast to all nearby servers
+ 
+
+
     // make it easy to access msg crap
     struct s2s_say *msg;
     msg = (struct s2s_say*) data;
@@ -901,7 +908,18 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
 }
 
 void handle_s_say(void *data, struct sockaddr_in sock){
-   
+
+    //TODO: Check unique identifier against
+  
+    //TODO: Forward message to any other S2S server in this channel
+    // AND to any interested users
+    
+    // TODO: If no users are subscribed to channel that message is sent over AND server that sent this 
+    // message is the only one of our nearby servers subscribed to channel,
+    //          reply to server that sent this with 's2s_leave'
+
+
+ 
     // make it easy to access msg crap
     struct s2s_say *msg;
     msg = (struct s2s_say*) data;
