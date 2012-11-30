@@ -433,7 +433,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // pack the s2s_join message with ID and channel name
             struct s2s_join join_msg;
             strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
-            join_msg.s2s_type = htonl(S1S_JOIN);
+            join_msg.s2s_type = htonl(S2S_JOIN);
             
             // send to all nearby servers
             for( list<struct sockaddr_in>::iterator it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
