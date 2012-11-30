@@ -3,6 +3,8 @@
 
 #include <string>
 
+#define MAX_UNIQUE_LIST 64
+
 #ifdef DEBUG
 #define DBG(fmt, ...)                                                    \
     do{                                                             \
