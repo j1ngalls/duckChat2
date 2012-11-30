@@ -24,11 +24,6 @@
 
 using namespace std;
 
-// TODO: Random Unique number generation
-/* 
-There is no simple way for a server to generate globally unique identifiers. Therefore, the Imaginarians have agreed to settle for identifiers that are unique with high probability. To accomplish this, servers use their random number generator to create the unique identifiers. Servers must seed their random number generator by reading bytes from /dev/urandom.
-*/
-
 /** Information about our server that we need globaly for error messages **/
 int                 our_sockfd;                 // socket for listening
 struct sockaddr_in  our_server;                 // OUR SERVER sockaddr struct
@@ -121,6 +116,7 @@ int main(int argc, char *argv[]){
             our_port = tmp_port;
             strcpy(our_hostname, inet_ntoa(tmp_serv.sin_addr));
             memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
+            our_server,sin_port = tmp_serv.sin_port;
             our_server.sin_family = tmp_serv.sin_family;
         
         }else{ // nearby (NOT ours)
