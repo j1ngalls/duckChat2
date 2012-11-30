@@ -590,6 +590,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
  
             // put together our s2s message to broadcast
             struct s2s_say s_msg;
+            s_msg.s2s_type = htonl(S2S_SAY);
             s_msg.s2s_uniqueID = be64toh(uniqueID);
             strcpy(s_msg.s2s_channel, channel.c_str());
             strcpy(s_msg.s2s_username, username.c_str());
