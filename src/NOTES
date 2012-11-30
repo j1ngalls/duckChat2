@@ -16,6 +16,7 @@ This made the implimentation of s2s_join more difficult and confusing.
 
 ---------------
 
+May have to check that the user is active before broadcasting in handle_s_say
 
 
 SENDTO sendto

@@ -44,7 +44,7 @@ map< string, list<struct sockaddr_in> >         channels_server;    // a map fro
 //list of nearby servers
 list< struct sockaddr_in >                      nearby_servers;     // a list of the nearby servers we are connected to
 //list of random IDs
-list< int >                                s2s_say_uniqueID;   // a list of unique IDs that will not exceed MAX_UNIQUEID 
+list< long long >                                     uniqueID_list;   // a list of unique IDs that will not exceed MAX_UNIQUEID 
 
 
 int main(int argc, char *argv[]){
@@ -547,6 +547,8 @@ void handle_say_message(void *data, struct sockaddr_in sock)
     // if yes send the message to all the members of the channel and to servers on the channel
     // if not send an error message to the user
 
+    int ret;
+
     //get message fields
     struct request_say* msg;
     msg = (struct request_say*)data;
@@ -576,22 +578,40 @@ void handle_say_message(void *data, struct sockaddr_in sock)
         send_error_message(sock, "Not logged in ");
 
     }else{
+    
         string username = rev_usernames[key];
-
-        map<string,map<string, struct sockaddr_in> >::iterator channel_iter;
-
-        channel_iter = channels.find(channel);
-
         active_usernames[username] = 1;
 
-        if (channel_iter == channels.end()){
-
-            //channel not found
-            send_error_message(sock, "No channel by the name " + channel);
-            cout << "server: " << username << " trying to send a message to non-existent channel " << channel << endl;
-
-        }else{
+        // dealing with nearby servers
+        if (channels_server.find(channel) != channels_server.end()){
+            list<struct sockaddr_in> servList = channels_server[channel];
+               
+            long long uniqueID = (long long) (rand()<<32) | rand();           
+ 
+            // put together our s2s message to broadcast
+            struct s2s_say s_msg;
+            s_msg.s2s_uniqueID = be64toh(uniqueID);
+            strcpy(s_msg.s2s_channel, channel.c_str());
+            strcpy(s_msg.s2s_username, username.c_str());
+            strncpy(s_msg.s2s_text, text.c_str(), SAY_MAX);
     
+            // broadcast to all servers connected to channel
+            for(list< struct sockaddr_in>::iterator it = servList.begin(); it != servList.end() ; it++ ){
+
+                struct sockaddr_in send_sock = *it;
+
+                ret = sendto(our_sockfd, &s_msg, sizeof(s_msg), 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+                if (ret == -1){
+                    perror("sendto fail");
+                }            
+            } 
+        }
+
+        map<string,map<string, struct sockaddr_in> >::iterator channel_iter;
+        channel_iter = channels.find(channel);
+        
+        if (channel_iter != channels.end()){
+
             //channel already exits
             map<string,struct sockaddr_in>::iterator channel_user_iter;
             channel_user_iter = channels[channel].find(username);
@@ -602,7 +622,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
                 send_error_message(sock, "You are not in channel " + channel);
                 cout << "server: " << username << " trying to send a message to channel " << channel  << " where he/she is not a member" << endl;
             
-            }else{ // TODO: Add S2S say message to all nearby servers in channel
+            }else{ 
                 map<string, struct sockaddr_in> existing_channel_users;
                 existing_channel_users = channels[channel];
                 for(channel_user_iter = existing_channel_users.begin(); channel_user_iter != existing_channel_users.end(); channel_user_iter++){
@@ -978,13 +998,14 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     // message is the only one of our nearby servers subscribed to channel,
     //          reply to server that sent this with 's2s_leave'
 
- 
+
+    int ret; 
     // make it easy to access msg content
     struct s2s_say *msg;
     msg = (struct s2s_say*) data;
 
     // initialize all the message content to local variables
-    long int uniqueID = msg->s2s_uniqueID;
+    long long uniqueID = htobe64(msg->s2s_uniqueID);
     string channel  = msg->s2s_channel;
     string username = msg->s2s_username;
     string text     = msg->s2s_text; 
@@ -1002,6 +1023,47 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     // print debug message 
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Say " << username << " " << channel << "\"" << text << "\"" << endl;
+    
+    // if not unique, return
+    for(list<long long>::iterator it = uniqueID_list.begin() ; it != uniqueID_list.end() ; it++){
+        if (*it == uniqueID)
+            return; // do nothing with the message 
+    } 
+    
+    // dealing with clients
+    if (channels.find(channel) != channels.end()){
+        map<string, struct sockaddr_in> clientList = channels[channel];
+        for(map<string, struct sockaddr_in>::iterator it = clientList.begin(); it != clientList.end() ; it++ ){
+
+            struct text_say send_msg;
+            send_msg.txt_type = TXT_SAY;
+
+            strcpy(send_msg.txt_channel, channel.c_str());
+            strcpy(send_msg.txt_username, username.c_str());
+            strcpy(send_msg.txt_text, text.c_str());
+
+            struct sockaddr_in send_sock = it->second;
+
+            ret = sendto(our_sockfd, &send_msg, sizeof(send_msg), 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+            if (ret == -1){
+                perror("sendto fail");
+            }            
+        } 
+    }
+
+    // dealing with nearby servers
+    if (channels_server.find(channel) != channels_server.end()){
+        list<struct sockaddr_in> servList = channels_server[channel];
+        for(list< struct sockaddr_in>::iterator it = servList.begin(); it != servList.end() ; it++ ){
+
+            struct sockaddr_in send_sock = *it;
+
+            ret = sendto(our_sockfd, msg, sizeof(*msg), 0, (struct sockaddr*)&send_sock, sizeof send_sock);
+            if (ret == -1){
+                perror("sendto fail");
+            }            
+        } 
+    }
 }
 
 void send_error_message(struct sockaddr_in sock, string error_msg)
