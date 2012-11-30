@@ -149,7 +149,8 @@ int main(int argc, char *argv[]){
 
         // get the time before the call to select
         time(&pre_time);
-        
+       
+        DBG("Going to make call to select: our_sockfd = %d, tv.tv_sec = %d, tv.tv_usec = %d\n", our_sockfd, tv.tv_sec, tv.tv_usec); 
         // Use select to determine where the request is coming from
         ret = select(our_sockfd+1, &fds, NULL, NULL, &tv);
         if (ret < 0){
@@ -157,27 +158,13 @@ int main(int argc, char *argv[]){
             exit(1);
         }
         
-        // get the time after the call to select and the time that elapsed
-        time(&post_time);
-        elapsed_time = post_time - pre_time;
-
         // if there was a request, handle it and reduce the time until we reasses client usage 
         if (FD_ISSET(our_sockfd,&fds)){
             
             handle_socket_input();
             
-            // reduce the time to reeval by the time between requests
-            if ((int)elapsed_time <= TIMEOUT_CLIENT_USAGE){
-                tv.tv_sec = tv.tv_sec - (int)elapsed_time;
-                tv.tv_usec = 0;
-           
-            }else{
-                // reset timer
-                tv.tv_sec = TIMEOUT_CLIENT_USAGE;
-                tv.tv_usec = 0;
-            }
-        
-        //check whether users are active and remove users if not active
+        // if there was not a request, it means that two minutes have elapsed and we need to verify that users
+        // are still active
         }else{
     
             // reset timer
@@ -613,7 +600,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
                 send_error_message(sock, "You are not in channel " + channel);
                 cout << "server: " << username << " trying to send a message to channel " << channel  << " where he/she is not a member" << endl;
             
-            }else{ // TODO: Add S2S say message to all servers in channel
+            }else{ // TODO: Add S2S say message to all nearby servers in channel
                 map<string, struct sockaddr_in> existing_channel_users;
                 existing_channel_users = channels[channel];
                 for(channel_user_iter = existing_channel_users.begin(); channel_user_iter != existing_channel_users.end(); channel_user_iter++){
@@ -879,7 +866,6 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     // (1) check to see if we are subscribed to channel
     //      end join message flooding
     // (2) if not, subscribe ourselves to the channel and broadcast to all nearby servers
- 
 
 
     // make it easy to access msg crap
