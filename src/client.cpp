@@ -22,7 +22,6 @@ using namespace std;
 #define STDIN 0  			/* file descriptor for standard input */
 #define MAX_MESSAGE_LEN 65536
 
-
 int s; //socket
 struct sockaddr_in server; //server address
 int cont; //continue to loop
@@ -30,9 +29,6 @@ char active_channel[CHANNEL_MAX]; //active channel
 //int rec_s; //receiving socket
 
 map<string,string> subscribed_channels;
-
-
-
 
 int send_login_message(char* username);
 int send_join_message(char* channel);
@@ -44,8 +40,6 @@ int send_logout_message();
 int send_list_message();
 int send_who_message(char* channel);
 int send_keep_alive_message();
-
-
 
 int main(int argc, char *argv[])
 {
@@ -280,7 +274,7 @@ int send_login_message(char* username)
 	size_t len;
 
 	struct request_login login_msg;
-	login_msg.req_type = REQ_LOGIN;
+	login_msg.req_type = htonl(REQ_LOGIN);
 	strcpy(login_msg.req_username,username);
 	data = &login_msg;
 
@@ -307,7 +301,7 @@ int send_join_message(char* channel)
 	size_t len;
 
 	struct request_join join_msg;
-	join_msg.req_type = REQ_JOIN;
+	join_msg.req_type = htonl(REQ_JOIN);
 	strcpy(join_msg.req_channel,channel);
 	data = &join_msg;
 
@@ -340,7 +334,7 @@ int send_leave_message(char* channel)
 	size_t len;
 
 	struct request_leave msg;
-	msg.req_type = REQ_LEAVE;
+	msg.req_type = htonl(REQ_LEAVE);
 
 	strcpy(msg.req_channel,channel);
 	data = &msg;
@@ -382,7 +376,7 @@ int send_logout_message()
 	size_t len;
 
 	struct request_logout msg;
-	msg.req_type = REQ_LOGOUT;
+	msg.req_type = htonl(REQ_LOGOUT);
 
 	data = &msg;
 
@@ -410,7 +404,7 @@ int send_keep_alive_message()
 	size_t len;
 
 	struct request_keep_alive msg;
-	msg.req_type = REQ_KEEP_ALIVE;
+	msg.req_type = htonl(REQ_KEEP_ALIVE);
 
 	data = &msg;
 
@@ -438,7 +432,7 @@ int send_list_message()
 	size_t len;
 
 	struct request_logout msg;
-	msg.req_type = REQ_LIST;
+	msg.req_type = htonl(REQ_LIST);
 
 	data = &msg;
 
@@ -466,7 +460,7 @@ int send_who_message(char* channel)
 	size_t len;
 
 	struct request_leave msg;
-	msg.req_type = REQ_WHO;
+	msg.req_type = htonl(REQ_WHO);
 	strcpy(msg.req_channel,channel);
 	data = &msg;
 
@@ -493,7 +487,7 @@ int send_say_message(char* text)
 	size_t len;
 
 	struct request_say say_msg;
-	say_msg.req_type = REQ_SAY;
+	say_msg.req_type = htonl(REQ_SAY);
 	strcpy(say_msg.req_channel,active_channel);
 	strcpy(say_msg.req_text,text);
 	data = &say_msg;

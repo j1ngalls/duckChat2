@@ -71,7 +71,7 @@ int main(int argc, char *argv[]){
     read(devrand_fd, seed, sizeof(unsigned int));
     close(devrand_fd);
     srand((unsigned int)*seed); 
-    DBG("Random number generator should be up!", 0);
+    DBG("Random number generator should be seeded!\n", 0);
 
 // (1) Verify user input
     if (argc < 3){
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]){
             our_port = tmp_port;
             strcpy(our_hostname, inet_ntoa(tmp_serv.sin_addr));
             memcpy(&our_server.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-            our_server,sin_port = tmp_serv.sin_port;
+            our_server.sin_port = tmp_serv.sin_port;
             our_server.sin_family = tmp_serv.sin_family;
         
         }else{ // nearby (NOT ours)
@@ -138,7 +138,7 @@ int main(int argc, char *argv[]){
     // TODO: Set up a timeout that resends s2s join to all nearby servers that we are on the channel of
     // TODO: Set up a timeout that kicks connected servers if they have not sent a join within the last two minutes
     // set our timeout
-    DBG("Entering main event loop", 0);
+    DBG("Entering main event loop\n", 0);
     tv.tv_sec = TIMEOUT_CLIENT_USAGE;
     tv.tv_usec = 0;
     while(1){
@@ -264,56 +264,71 @@ void handle_socket_input(){
         struct request* request_msg;
         request_msg = (struct request*)data;
 
-        request_t message_type = request_msg->req_type;
+        request_t message_type = ntohl(request_msg->req_type);
+        
+        switch (message_type){
+                
+            case REQ_LOGIN:
+                DBG("Handling request Login\n", 0);
+                handle_login_message(data, recv_client); 
+                break;
+            
+            case REQ_LOGOUT: 
+                DBG("Handling request Logout\n", 0);
+                handle_logout_message(recv_client);
+                break;
+            
+            case REQ_JOIN:
+                DBG("Handling request Join\n", 0);
+                handle_join_message(data, recv_client);
+                break;
+            
+            case REQ_LEAVE: 
+                DBG("Handling request Leave\n", 0);
+                handle_leave_message(data, recv_client);
+                break;
+            
+            case REQ_SAY: 
+                DBG("Handling request Say\n", 0);
+                handle_say_message(data, recv_client);
+                break;
+            
+            case REQ_LIST:    
+                DBG("Handling request List\n", 0);
+                handle_list_message(recv_client);
+                break;
+            
+            case REQ_WHO: 
+                DBG("Handling request Who\n", 0);
+                handle_who_message(data, recv_client);
+                break;
+            
+            case REQ_KEEP_ALIVE: 
+                DBG("Handling request KeepAlive\n", 0);
+                handle_keep_alive_message(recv_client);
+                break;
+            
+            case S2S_JOIN: 
+                DBG("Handling s2s request Join\n", 0);
+                handle_s_join(data, recv_client);
+                break;
+            
+            case S2S_LEAVE: 
+                DBG("Handling s2s request Leave\n", 0);
+                handle_s_leave(data, recv_client);
+                break;
+            
+            case S2S_SAY: 
+                DBG("Handling s2s request Say\n", 0);
+                handle_s_say(data, recv_client);
+                break;
 
-        if (message_type == REQ_LOGIN){
-            DBG("Handling request Login", 0);
-            handle_login_message(data, recv_client); 
-        
-        }else if (message_type == REQ_LOGOUT){
-            DBG("Handling request Logout", 0);
-            handle_logout_message(recv_client);
-        
-        }else if (message_type == REQ_JOIN){
-            DBG("Handling request Join", 0);
-            handle_join_message(data, recv_client);
-        
-        }else if (message_type == REQ_LEAVE){
-            DBG("Handling request Leave", 0);
-            handle_leave_message(data, recv_client);
-        
-        }else if (message_type == REQ_SAY){
-            DBG("Handling request Say", 0);
-            handle_say_message(data, recv_client);
-        
-        }else if (message_type == REQ_LIST){
-            DBG("Handling request List", 0);
-            handle_list_message(recv_client);
-        
-        }else if (message_type == REQ_WHO){
-            DBG("Handling request Who", 0);
-            handle_who_message(data, recv_client);
-        
-        }else if (message_type == REQ_KEEP_ALIVE){
-            DBG("Handling request KeepAlive", 0);
-            handle_keep_alive_message(recv_client);
-        
-        }else if (message_type == S2S_JOIN){
-            DBG("Handling s2s request Join", 0);
-            handle_s_join(data, recv_client);
-        
-        }else if (message_type == S2S_LEAVE){
-            DBG("Handling s2s request Leave", 0);
-            handle_s_leave(data, recv_client);
-        
-        }else if (message_type == S2S_SAY){
-            DBG("Handling s2s request Say", 0);
-            handle_s_say(data, recv_client);
-
-        }else
-            DBG("Handling invalid request", 0);
-            //send error message to client
-            send_error_message(recv_client, "*Unknown command");
+            // XXX we are always here! WHY!?!?!
+            default:
+                DBG("Handling invalid request\n", 0);
+                //send error message to client
+                send_error_message(recv_client, "!!Incoming request type unkown!!");
+        }    
     }
 }
 
@@ -412,7 +427,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
     // print debug message
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
          << " recv Request Join " << channel << endl;
-    
+   
     // need the check if the server exist on any other channel
     //check whether key is in rev_usernames
     map <string,string> :: iterator iter;
