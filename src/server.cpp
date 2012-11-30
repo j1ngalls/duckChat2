@@ -71,7 +71,6 @@ int main(int argc, char *argv[]){
     read(devrand_fd, seed, sizeof(unsigned int));
     close(devrand_fd);
     srand((unsigned int)*seed); 
-    DBG("Random number generator should be seeded!\n", 0);
 
 // (1) Verify user input
     if (argc < 3){
@@ -138,7 +137,6 @@ int main(int argc, char *argv[]){
     // TODO: Set up a timeout that resends s2s join to all nearby servers that we are on the channel of
     // TODO: Set up a timeout that kicks connected servers if they have not sent a join within the last two minutes
     // set our timeout
-    DBG("Entering main event loop\n", 0);
     tv.tv_sec = TIMEOUT_CLIENT_USAGE;
     tv.tv_usec = 0;
     while(1){
@@ -150,7 +148,6 @@ int main(int argc, char *argv[]){
         // get the time before the call to select
         time(&pre_time);
        
-        DBG("Going to make call to select: our_sockfd = %d, tv.tv_sec = %d, tv.tv_usec = %d\n", our_sockfd, tv.tv_sec, tv.tv_usec); 
         // Use select to determine where the request is coming from
         ret = select(our_sockfd+1, &fds, NULL, NULL, &tv);
         if (ret < 0){
@@ -439,7 +436,7 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             // pack the s2s_join message with ID and channel name
             struct s2s_join join_msg;
             strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
-            join_msg.s2s_type = S2S_JOIN;
+            join_msg.s2s_type = htonl(S2S_JOIN);
             
             // send to all nearby servers
             list<struct sockaddr_in>::iterator it;
