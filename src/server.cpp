@@ -109,7 +109,7 @@ int main(int argc, char *argv[]){
         tmp_serv.sin_port = htons(tmp_port);
         tmp_serv.sin_family = AF_INET;
         memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
-        
+       
         // Save server info to either nearby server list or to our server info
         if(i == 0){ // "our" server
             our_port = tmp_port;
@@ -119,9 +119,7 @@ int main(int argc, char *argv[]){
             our_server.sin_family = tmp_serv.sin_family;
         
         }else{ // nearby (NOT ours)
-            memcpy(&tmp_serv.sin_addr, tmp_hostent->h_addr_list[0], tmp_hostent->h_length);
             nearby_servers.push_back(tmp_serv);
-
         }
     }
     
@@ -186,7 +184,7 @@ int main(int argc, char *argv[]){
                     struct sockaddr_in sock = user_iter->second;
                     string ip = inet_ntoa(sock.sin_addr);
 
-                    int srcport = sock.sin_port;
+                    int srcport = ntohs(sock.sin_port);
 
                     char port_str[6];
                     sprintf(port_str, "%d", srcport);
@@ -293,21 +291,20 @@ void handle_socket_input(){
                 break;
             
             case S2S_JOIN: 
-                DBG("Handling s2s request Join\n", 0);
+                DBG("Handling s2s Join\n", 0);
                 handle_s_join(data, recv_client);
                 break;
             
             case S2S_LEAVE: 
-                DBG("Handling s2s request Leave\n", 0);
+                DBG("Handling s2s Leave\n", 0);
                 handle_s_leave(data, recv_client);
                 break;
             
             case S2S_SAY: 
-                DBG("Handling s2s request Say\n", 0);
+                DBG("Handling s2s Say\n", 0);
                 handle_s_say(data, recv_client);
                 break;
 
-            // XXX we are always here! WHY!?!?!
             default:
                 DBG("Handling invalid request\n", 0);
                 //send error message to client
@@ -327,7 +324,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
     active_usernames[username] = 1;
 
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -343,7 +340,7 @@ void handle_login_message(void *data, struct sockaddr_in sock){
 void handle_logout_message(struct sockaddr_in sock){
     //construct the key using sockaddr_in
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -397,13 +394,15 @@ void handle_join_message(void *data, struct sockaddr_in sock)
     // If we are subscribed, everything goes as normal
     // if we ar NOT subscribed, flood all nearby servers with join message 
 
+    int ret;
+    
     //get message fields
     struct request_join* msg;
     msg = (struct request_join*)data;
     
     string channel = msg->req_channel;
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
     char port_str[6];
     sprintf(port_str, "%d", srcport);
     string key = ip + "." + port_str;
@@ -440,8 +439,14 @@ void handle_join_message(void *data, struct sockaddr_in sock)
             
             // send to all nearby servers
             list<struct sockaddr_in>::iterator it;
-            for( it=nearby_servers.begin() ; it!=nearby_servers.end() ; it++){
-                sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*)&it->sin_addr, sizeof(it));            
+            for( it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
+                cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
+                    << " send S2S Join " << channel << endl;
+                ret = sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, 
+                        (struct sockaddr*) &(*it), sizeof(*it));
+                if (ret == -1){
+                    perror("sendto fail");
+                }            
             } 
         
             // add the channel
@@ -473,7 +478,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -523,7 +528,7 @@ void handle_leave_message(void *data, struct sockaddr_in sock){
                 cout << "server: " << username << " leaves channel " << channel <<endl;
 
                 //delete channel if no more users
-                if (channels[channel].empty() && (channel != "Common")){
+                if (channels[channel].empty()){
                     channels.erase(channel_iter);
                     cout << "server: " << "removing empty channel " << channel <<endl;
                 }
@@ -551,7 +556,7 @@ void handle_say_message(void *data, struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -640,7 +645,7 @@ void handle_list_message(struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -739,7 +744,7 @@ void handle_who_message(void *data, struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -832,7 +837,7 @@ void handle_keep_alive_message(struct sockaddr_in sock)
 
     string ip = inet_ntoa(sock.sin_addr);
 
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
 
     char port_str[6];
     sprintf(port_str, "%d", srcport);
@@ -861,9 +866,10 @@ void handle_keep_alive_message(struct sockaddr_in sock)
 void handle_s_join(void *data, struct sockaddr_in sock){
    
     // (1) check to see if we are subscribed to channel
-    //      end join message flooding
+    //      if YES end join message flooding
     // (2) if not, subscribe ourselves to the channel and broadcast to all nearby servers
 
+    int ret;
 
     // make it easy to access msg crap
     struct s2s_join *msg;
@@ -874,18 +880,53 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     
     // initialize all of the ipaddr and port stuff
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
     char port_str[6];
     sprintf(port_str, "%d", srcport);
     string key = ip + "." + port_str;
 
     //check whether key is in rev_usernames
-    map <string,string> :: iterator iter;
+    map <string,string> :: iterator it;
 
     // print debug message 
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Join " << channel << endl;
+
+    // check if we are subscribed to channel
+    if (channels.find(channel) != channels.end()){ // we are subscribed to channel
+        
+        // remove the server list from the channel and append the incoming servers information
+        list<struct sockaddr_in> new_server_list = channels_server[channel];
+        channels_server.erase(channel);
+        new_server_list.push_back(sock);
+
+        // reinsert the updated list
+        channels_server[channel] = new_server_list;
+       
+        // Commenting 
+        // DEBUG PRINTING to make sure that the list 
+        //for (list<struct sockaddr_in>::iterator it = new_server_list.begin() ; it != new_server_list.end() ; it++)
+          //  DBG("sockaddr port is %d\n", ntohs(it->sin_port));
     
+    }else{ // we are not subscribed to channel
+        // subscribe ourselves to channel
+        // we will have no users subscribed initially
+        map<string, struct sockaddr_in> new_channel_users;
+        channels[channel] = new_channel_users;
+        
+        // broadcast to all nearby servers that we want to join
+        // send the s2s join message to all nearby servers
+        list<struct sockaddr_in>::iterator it;
+        for( it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
+            ret = sendto(our_sockfd, data, sizeof(*(struct s2s*)data), 0, 
+                    (struct sockaddr*) &(*it), sizeof(*it));
+            if (ret == -1){
+                perror("sendto fail");
+            }            
+        } 
+            
+    }
+
 }
 
 void handle_s_leave(void *data, struct sockaddr_in sock){
@@ -904,12 +945,25 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
     sprintf(port_str, "%d", srcport);
     string key = ip + "." + port_str;
 
-    //check whether key is in rev_usernames
-    map <string,string> :: iterator iter;
-
     // print debug message 
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Leave " << channel << endl;
+
+    // make sure that we have information on that channel
+    if(channels_server.find(channel) != channels_server.end()){
+        list<struct sockaddr_in> server_list = channels_server[channel];
+        //server_list.remove(sock);
+        for (list<struct sockaddr_in>::iterator it = server_list.begin() ; it != server_list.end() ; it++){
+            sock.sin_addr = it->sin_addr;
+            if(it->sin_addr.s_addr == sock.sin_addr.s_addr && it->sin_port == sock.sin_port){
+                server_list.erase(it);
+                break;        
+            }
+        }
+
+        channels_server.erase(channel);
+        channels_server[channel] = server_list;
+    }
 }
 
 void handle_s_say(void *data, struct sockaddr_in sock){
