@@ -1,3 +1,5 @@
+
+
 SHIT THAT WAS WRONG
 ---------------
 1. server and client did not consistantly hton and ntoh multi-byte fields,
