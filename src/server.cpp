@@ -251,62 +251,50 @@ void handle_socket_input(){
         switch (message_type){
                 
             case REQ_LOGIN:
-                DBG("Handling request Login\n", 0);
                 handle_login_message(data, recv_client); 
                 break;
             
             case REQ_LOGOUT: 
-                DBG("Handling request Logout\n", 0);
                 handle_logout_message(recv_client);
                 break;
             
             case REQ_JOIN:
-                DBG("Handling request Join\n", 0);
                 handle_join_message(data, recv_client);
                 break;
             
             case REQ_LEAVE: 
-                DBG("Handling request Leave\n", 0);
                 handle_leave_message(data, recv_client);
                 break;
             
             case REQ_SAY: 
-                DBG("Handling request Say\n", 0);
                 handle_say_message(data, recv_client);
                 break;
             
             case REQ_LIST:    
-                DBG("Handling request List\n", 0);
                 handle_list_message(recv_client);
                 break;
             
             case REQ_WHO: 
-                DBG("Handling request Who\n", 0);
                 handle_who_message(data, recv_client);
                 break;
             
             case REQ_KEEP_ALIVE: 
-                DBG("Handling request KeepAlive\n", 0);
                 handle_keep_alive_message(recv_client);
                 break;
             
             case S2S_JOIN: 
-                DBG("Handling s2s Join\n", 0);
                 handle_s_join(data, recv_client);
                 break;
             
             case S2S_LEAVE: 
-                DBG("Handling s2s Leave\n", 0);
                 handle_s_leave(data, recv_client);
                 break;
             
             case S2S_SAY: 
-                DBG("Handling s2s Say\n", 0);
                 handle_s_say(data, recv_client);
                 break;
 
             default:
-                DBG("Handling invalid request\n", 0);
                 //send error message to client
                 send_error_message(recv_client, "!!Incoming request type unkown!!");
         }    
