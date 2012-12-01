@@ -894,7 +894,7 @@ void handle_s_join(void *data, struct sockaddr_in sock){
    
     // (1) check to see if we are subscribed to channel
     //      if YES end join message flooding
-    // (2) if not, subscribe ourselves to the channel and broadcast to all nearby servers
+    // (2) if not, subscribe ourselves to the channel and broadcast to all nearby servers excluding sock
 
     int ret;
 
@@ -915,6 +915,31 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     // print debug message 
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Join " << channel << endl;
+
+    // if we are not subscribed to the channel
+        // broadcast to all nearby _excluding_ sock 
+    if(channels_server.find(channel) == channels_server.end()){
+        
+        for( list<struct sockaddr_in>::iterator it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
+            if (sock.sin_addr.s_addr == it->sin_addr.s_addr && sock.sin_port == it->sin_port)
+                continue;
+    
+            // INFORMATION message
+            cout << our_hostname << ":" << our_port << " " << inet_ntoa(it->sin_addr) << ":" << ntohl(it->sin_port) 
+                << " send S2S Join " << channel << endl;
+            
+            ret = sendto(our_sockfd, data, sizeof(*(struct s2s*)data), 0,  (struct sockaddr*) &(*it), sizeof(*it));
+            if (ret == -1){
+                perror("sendto fail");
+            }            
+        } 
+        
+    }
+
+
+
+/*
+
 
     // step through all of the nearby servers
     for(list<struct sockaddr_in>::iterator nearbyserver = nearby_servers.begin() ; nearbyserver != nearby_servers.end() ; nearbyserver++){
@@ -945,7 +970,7 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     servList.push_back(sock);
     channels_server[channel] = servList;
 
-
+*/
 
 
 /*
