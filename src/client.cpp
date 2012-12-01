@@ -140,9 +140,6 @@ int main(int argc, char *argv[])
 	tv.tv_sec = 60;
 	tv.tv_usec = 0;
 
-	time_t t1,t2;
-
-
 	while (cont)
 	{
 		//do this while continue and call the appropriate function
@@ -159,10 +156,6 @@ int main(int argc, char *argv[])
 		FD_SET(STDIN, &fds);
 		FD_SET(s, &fds);
 		//tv.tv_sec = tv.tv_usec = 0;
-
-
-		//rc = select(s+1, &fds, NULL, NULL, NULL);
-		time(&t1);
 
 		rc = select(s+1, &fds, NULL, NULL, &tv);
 		if (rc < 0)
@@ -191,11 +184,6 @@ int main(int argc, char *argv[])
 				server_data = 1;
 			}
 
-			time(&t2);
-
-			int elapsed_time = (int) t2-t1;
-			//cout << "elapsed time " << elapsed_time <<endl;
-
 
 			if (!(user_data||server_data))
 			{
@@ -211,31 +199,6 @@ int main(int argc, char *argv[])
 				tv.tv_sec = 60;
 				tv.tv_usec = 0;
 				//cout << "timer timed out: reseting the timer " << endl;
-
-			}
-			else if (user_data)
-			{
-				//reset the timer
-				tv.tv_sec = 60;
-				tv.tv_usec = 0;
-				//cout << "got user data: reseting the timer " << endl;
-			}
-			else  //server_data && !user_data
-			{
-				  //reduce the timer
-				  //cout << "got server data only: reseting the timer " << endl;
-				  if (elapsed_time <= 60)
-				  {
-					  tv.tv_sec = tv.tv_sec - elapsed_time;
-					  tv.tv_usec = 0;
-				  }
-				  else
-				  {
-					  tv.tv_sec = 60;
-					  tv.tv_usec = 0;
-				  }
-				  //cout << "new timer value (seconds): " << tv.tv_sec << endl;
-
 
 			}
 

@@ -5,18 +5,22 @@ SHIT THAT WAS WRONG
 1. server and client did not consistantly hton and ntoh multi-byte fields,
 mostly in regards to the request_t and text_t variables
 
-2. server had incorrect logic when it came to keep_alive. It was implimented thinking
+2. server and client had incorrect logic when it came to keep_alive. It was implimented thinking
 that the tv struct needed to be decramented, when in actuality it progressivly counts
 down without an additional count down. This occasionally led to the server decrementing 
 the tv structure making it invalid in the call to select.
 
-3. "Common" channel is incorrectly assumed to exist no matter what in the server.
+3. "Common" channel is incorrectly assumed to exist in the server.
     Channel creation and deletion at server are handled implicitly. 
     Whenever a channel has no users, it is deleted. Whenever a user 
     joins a channel that did not exist, it is created.
 This made the implimentation of s2s_join more difficult and confusing.
 
 ---------------
+
+
+Subscribing to s2s_channel actually means adding all nearby servers to
+channels_server[s2s_channel]
 
 May have to check that the user is active before broadcasting in handle_s_say
 

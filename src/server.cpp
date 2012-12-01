@@ -56,11 +56,6 @@ int main(int argc, char *argv[]){
     struct timeval 
         tv;             // create struct for select timeout
     
-    time_t 
-        pre_time,       // Used to determine the time elapsed from one incoming
-        post_time,      // request to the next
-        elapsed_time;   // ^^
-    
     fd_set 
         fds;            // for call to select
 
@@ -135,17 +130,16 @@ int main(int argc, char *argv[]){
     // TODO: Set up a timeout that resends s2s join to all nearby servers that we are on the channel of
     // TODO: Set up a timeout that kicks connected servers if they have not sent a join within the last two minutes
     // set our timeout
+    // change this timeout to one minute and store some extra state so that 
     tv.tv_sec = TIMEOUT_CLIENT_USAGE;
     tv.tv_usec = 0;
+    int client_keepAlive = 0;
     while(1){
 
         // set up the fd_set for call to select 
         FD_ZERO(&fds);
         FD_SET(our_sockfd, &fds);
 
-        // get the time before the call to select
-        time(&pre_time);
-       
         // Use select to determine where the request is coming from
         ret = select(our_sockfd+1, &fds, NULL, NULL, &tv);
         if (ret < 0){
@@ -160,63 +154,92 @@ int main(int argc, char *argv[]){
             
         // if there was not a request, it means that two minutes have elapsed and we need to verify that users
         // are still active
-        }else{
+        }else{ // 2 minute timeout
     
+            
             // reset timer
             tv.tv_sec = TIMEOUT_CLIENT_USAGE;
             tv.tv_usec = 0;
-
-            // loop through all users. if they are inactive, remove them from appropriate lists
-            map<string,int>::iterator active_user_iter;
-            for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++){
-                string username = active_user_iter->first;
-                int isActive = active_user_iter->second;
-
-                if (!(isActive)){
-
-                    //key has to be constructed to remove from rev_usernames
-                    cout << "server: forcibly removing user " << username << endl;
-
-                    map<string, struct sockaddr_in>::iterator user_iter;
-                    user_iter = usernames.find(username);
-
-                    //key has to be constructed to remove from rev_usernames
-                    struct sockaddr_in sock = user_iter->second;
-                    string ip = inet_ntoa(sock.sin_addr);
-
-                    int srcport = ntohs(sock.sin_port);
-
-                    char port_str[6];
-                    sprintf(port_str, "%d", srcport);
-                    string key = ip + "." +port_str;
-
-                    map <string,string> :: iterator rev_user_iter;
-
-                    rev_user_iter = rev_usernames.find(key);
-                    rev_usernames.erase(rev_user_iter);
-
-                    //remove from usernames
-                    usernames.erase(user_iter);
-
-                    //remove from all the channels if found
-                    map<string,map<string, struct sockaddr_in> >::iterator channel_iter;
-                    for(channel_iter = channels.begin(); channel_iter != channels.end(); channel_iter++){
-                        map<string, struct sockaddr_in>::iterator within_channel_iterator;
-                        within_channel_iterator = channel_iter->second.find(username);
-
-                        if (within_channel_iterator != channel_iter->second.end())
-                            channel_iter->second.erase(within_channel_iterator);
-
-                    }
-
-                    //erase from active users
-                    active_usernames.erase(active_user_iter);
+            client_keepAlive++;
+    
+            // Server soft state stuff
+            // This for loop resends to each server that we are connected to for each channel
+            map< string, list<struct sockaddr_in> >::iterator servList_it;
+            for (servList_it = channels_server.begin() ; servList_it != channels_server.end() ; servList_it++){
+                
+                // pack the s2s_join message with ID and channel name
+                struct s2s_join join_msg;
+                strncpy(join_msg.s2s_channel, servList_it->first.c_str(), CHANNEL_MAX);
+                join_msg.s2s_type = htonl(S2S_JOIN);
+    
+                list<struct sockaddr_in> servList = servList_it->second;
+                list<struct sockaddr_in>::iterator serv_it;
+                for(serv_it = servList.begin() ; serv_it != servList.end() ; serv_it++){
+                    ret = sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*) &(*serv_it), sizeof(*serv_it));
+                    if (ret == -1){
+                        perror("sendto fail");
+                    }            
                 }
-            }
+            }                     
 
-            //reset the data structure that keep track of active users
-            for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++)
-                active_user_iter->second = 0;
+            // every OTHER timeout
+            if (client_keepAlive >= 2){
+                // means that we do not do it next time
+                client_keepAlive = 0;
+            
+                // CLIENT version of keepalive
+                // loop through all users. if they are inactive, remove them from appropriate lists
+                map<string,int>::iterator active_user_iter;
+                for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++){
+                    string username = active_user_iter->first;
+                    int isActive = active_user_iter->second;
+
+                    if (!(isActive)){
+
+                        //key has to be constructed to remove from rev_usernames
+                        cout << "server: forcibly removing user " << username << endl;
+
+                        map<string, struct sockaddr_in>::iterator user_iter;
+                        user_iter = usernames.find(username);
+
+                        //key has to be constructed to remove from rev_usernames
+                        struct sockaddr_in sock = user_iter->second;
+                        string ip = inet_ntoa(sock.sin_addr);
+
+                        int srcport = ntohs(sock.sin_port);
+
+                        char port_str[6];
+                        sprintf(port_str, "%d", srcport);
+                        string key = ip + "." +port_str;
+
+                        map <string,string> :: iterator rev_user_iter;
+
+                        rev_user_iter = rev_usernames.find(key);
+                        rev_usernames.erase(rev_user_iter);
+
+                        //remove from usernames
+                        usernames.erase(user_iter);
+
+                        //remove from all the channels if found
+                        map<string,map<string, struct sockaddr_in> >::iterator channel_iter;
+                        for(channel_iter = channels.begin(); channel_iter != channels.end(); channel_iter++){
+                            map<string, struct sockaddr_in>::iterator within_channel_iterator;
+                            within_channel_iterator = channel_iter->second.find(username);
+
+                            if (within_channel_iterator != channel_iter->second.end())
+                                channel_iter->second.erase(within_channel_iterator);
+
+                        }
+
+                        //erase from active users
+                        active_usernames.erase(active_user_iter);
+                    }
+                }
+
+                //reset the data structure that keep track of active users
+                for(active_user_iter = active_usernames.begin(); active_user_iter != active_usernames.end(); active_user_iter++)
+                    active_user_iter->second = 0;
+            }
         }
     }
 
@@ -580,7 +603,8 @@ void handle_say_message(void *data, struct sockaddr_in sock)
             list<struct sockaddr_in> servList = channels_server[channel];
 
             // This works              
-            long long uniqueID = (long long) (rand()<<32) | rand();           
+            long long uniqueID = rand();
+            uniqueID = uniqueID<<32 | rand();           
  
             // put together our s2s message to broadcast
             struct s2s_say s_msg;
@@ -904,103 +928,45 @@ void handle_s_join(void *data, struct sockaddr_in sock){
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Join " << channel << endl;
 
-    // if we are not subscribed to the channel
-        // broadcast to all nearby _excluding_ sock 
-    if(channels_server.find(channel) == channels_server.end()){
-        
-        for( list<struct sockaddr_in>::iterator it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
-            if (sock.sin_addr.s_addr == it->sin_addr.s_addr && sock.sin_port == it->sin_port)
-                continue;
     
-            // INFORMATION message
-            cout << our_hostname << ":" << our_port << " " << inet_ntoa(it->sin_addr) << ":" << ntohl(it->sin_port) 
-                << " send S2S Join " << channel << endl;
-            
-            ret = sendto(our_sockfd, data, sizeof(*(struct s2s*)data), 0,  (struct sockaddr*) &(*it), sizeof(*it));
-            if (ret == -1){
-                perror("sendto fail");
-            }            
-        } 
-        
-    }
-
-
-
-/*
-
-
-    // step through all of the nearby servers
-    for(list<struct sockaddr_in>::iterator nearbyserver = nearby_servers.begin() ; nearbyserver != nearby_servers.end() ; nearbyserver++){
-        
-        // step through all of the servers that are connected to the channel
-        for(list<struct sockaddr_in>::iterator otherserver = channels_server[channel].begin() ; otherserver != channels_server[channel].end() ; otherserver++){
-            // if the nearby server is not the other server
-            //     send the s2s join request to the other server
-            if(nearbyserver->sin_addr.s_addr != otherserver->sin_addr.s_addr && nearbyserver->sin_port != otherserver->sin_port){
-                // if we get here, then there was no match for this particular nearby server and servers in channels_server[channel]
-                // send s2s join
-                // pack the s2s_join message with ID and channel name
-                struct s2s_join join_msg;
-                strncpy(join_msg.s2s_channel, channel.c_str(), CHANNEL_MAX);
-                join_msg.s2s_type = htonl(S2S_JOIN);
+    // MUST VERIFY THAT WE ARE SUBSCRIBED
+    // if we are not subscribed to the channel
+        // subscribe ourselves to channel
+        // broadcast to all nearby _excluding_ sock
+    if(channels_server.find(channel) == channels_server.end()){
+        DBG("%s:%d is not subscribed to %s\n", our_hostname, our_port, channel.c_str());
+    
+            list<struct sockaddr_in> servList;
+            // step through all nearby servers. adding them to our list associated with that channel as we go
+            for( list<struct sockaddr_in>::iterator it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
                 
-                // send the message to the nearby server
-                ret = sendto(our_sockfd, &join_msg, sizeof(join_msg), 0, (struct sockaddr*) &(*nearbyserver), sizeof(*nearbyserver));
+                // we make this check because we do not want to broadcast back to whoever broadcasted to us
+                if (sock.sin_addr.s_addr == it->sin_addr.s_addr && ntohs(sock.sin_port) == it->sin_port)
+                    continue;
+        
+                cout << our_hostname << ":" << our_port << " " << inet_ntoa(it->sin_addr) << ":" << it->sin_port
+                    << " send S2S Join " << channel << endl;
+                
+                // adding this nearby server to our list
+                servList.push_back(*it);
+                
+                ret = sendto(our_sockfd, data, sizeof(*(struct s2s*)data), 0,  (struct sockaddr*) &(*it), sizeof(*it));
                 if (ret == -1){
                     perror("sendto fail");
-                }
+                }            
             }
-        }
+         
+            // finally, push servList into channels_server structure
+            channels_server[channel] = servList; 
     }
 
-    // add the server from where this s2s request came from to the channels list
-    list<struct sockaddr_in> servList = channels_server[channel]; 
-    servList.push_back(sock);
-    channels_server[channel] = servList;
-
-*/
-
-
-/*
-
-    // if we are sending messages over this channel to nearby servers
-    //      then simply add the server wishing to join to this channel 
-    if (channels_server.find(channel) != channels_server.end()){ // we are subscribed to channel
-        
-        // remove the server list from the channel and append the incoming servers information
-        list<struct sockaddr_in> new_server_list = channels_server[channel];
-        channels_server.erase(channel);
-        new_server_list.push_back(sock);
-
-        // reinsert the updated list
-        channels_server[channel] = new_server_list;
-      
-    // if we are not subscribed to the channel within nearby servers
-    //      then add the channel and this server 
-    }else{ 
-        
-        // add the server requesting to our list of nearby 
-        list<struct sockaddr_in> servList;
-        servList.push_back(sock);
-        channels_server[channel] = servList;
-        
-        // XXX do we need to do this???
-        // subscribe ourselves to channel locally as well
-        // we will have no users subscribed initially
-        // map<string, struct sockaddr_in> new_channel_users;
-        // channels[channel] = new_channel_users;
-
-        // broadcast to all nearby servers that we want to join
-        for( list<struct sockaddr_in>::iterator it = nearby_servers.begin() ; it != nearby_servers.end() ; it++){
-            if (sock.sin_addr.s_addr == it->sin_addr.s_addr && sock.sin_port == it->sin_port)
-                continue;
-            ret = sendto(our_sockfd, data, sizeof(*(struct s2s*)data), 0,  (struct sockaddr*) &(*it), sizeof(*it));
-            if (ret == -1){
-                perror("sendto fail");
-            }            
-        } 
-  */          
-
+    // why does 
+    DBG("--------------- Servers in channel: %s --------------------\n", channel.c_str());
+    // while servers in channel
+    for(list<struct sockaddr_in>::iterator it = channels_server[channel].begin() ; it != channels_server[channel].end() ; it++){
+        DBG("%s:%d\n", inet_ntoa(it->sin_addr), it->sin_port );
+        // print server
+    }
 }
 
 void handle_s_leave(void *data, struct sockaddr_in sock){
@@ -1014,7 +980,7 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
     
     // initialize all of the ipaddr and port stuff from the sender
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = htons(sock.sin_port);
     char port_str[6];
     sprintf(port_str, "%d", srcport);
     string key = ip + "." + port_str;
@@ -1030,7 +996,7 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
         // check the list for this incoming sock and remove it if found
         for (list<struct sockaddr_in>::iterator it = server_list.begin() ; it != server_list.end() ; it++){
             sock.sin_addr = it->sin_addr;
-            if(it->sin_addr.s_addr == sock.sin_addr.s_addr && it->sin_port == sock.sin_port){
+            if(it->sin_addr.s_addr == sock.sin_addr.s_addr && it->sin_port == ntohs(sock.sin_port)){
                 server_list.erase(it);
                 break;        
             }
@@ -1043,13 +1009,13 @@ void handle_s_leave(void *data, struct sockaddr_in sock){
 
 void handle_s_say(void *data, struct sockaddr_in sock){
 
-    //TODO: Check unique identifier against our list of unique identifiers
+    // Check unique identifier against our list of unique identifiers
     //          if it matches any in our list then drop the message and send s2s leave to the server received from
   
-    //TODO: Forward message to any other S2S server in this channel
+    // Forward message to any other S2S server in this channel
     // AND to any interested users
     
-    // TODO: If no users are subscribed to channel that message is sent over AND server that sent this 
+    // If no users are subscribed to channel that message is sent over AND server that sent this 
     // message is the only one of our nearby servers subscribed to channel,
     //          reply to server that sent this with 's2s_leave'
 
@@ -1067,7 +1033,7 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     
     // initialize all of the ipaddr and port stuff
     string ip = inet_ntoa(sock.sin_addr);
-    int srcport = sock.sin_port;
+    int srcport = ntohs(sock.sin_port);
     char port_str[6];
     sprintf(port_str, "%d", srcport);
     string key = ip + "." + port_str;
@@ -1079,22 +1045,22 @@ void handle_s_say(void *data, struct sockaddr_in sock){
     cout << our_hostname << ":" << our_port << " " << ip << ":" << srcport 
         << " recv S2S Say " << username << " " << channel << "\"" << text << "\"" << endl;
     
-    // XXX need to change the check to include the ONE server that is in the channel_server list (equal to sock)
-    // if there are no clients and no servers that wish to hear this message
-    // reply with leave!
-    if (channels_server.find(channel) == channels_server.end() && channels.find(channel) == channels.end()){ 
-    
-        // construct our leave message
-        struct s2s_leave l_msg;
-        l_msg.s2s_type = htonl(S2S_LEAVE);
-        strcpy(l_msg.s2s_channel, channel.c_str());
+    // if sock is the only in channels_server[channel]
+    if (channels_server.find(channel) != channels_server.end()){
+        if (channels_server[channel].size() <= 1 && channels.find(channel) == channels.end()){ 
+        
+            // construct our leave message
+            struct s2s_leave l_msg;
+            l_msg.s2s_type = htonl(S2S_LEAVE);
+            strcpy(l_msg.s2s_channel, channel.c_str());
 
-        // send leave request to server that sent us this say 
-        ret = sendto(our_sockfd, &l_msg, sizeof(l_msg), 0,(struct sockaddr*)&sock, sizeof(sock));    
-        if (ret == -1)
-            perror("sendto failed");
-        return;
-    } 
+            // send leave request to server that sent us this say 
+            ret = sendto(our_sockfd, &l_msg, sizeof(l_msg), 0,(struct sockaddr*)&sock, sizeof(sock));    
+            if (ret == -1)
+                perror("sendto failed");
+            return;
+        } 
+    }
     
     // if this message has been received before
     // reply with leave!
@@ -1146,7 +1112,7 @@ void handle_s_say(void *data, struct sockaddr_in sock){
         for(list< struct sockaddr_in>::iterator it = servList.begin(); it != servList.end() ; it++ ){
    
             // do not send back to the host that we received the message from         
-            if(sock.sin_addr.s_addr == it->sin_addr.s_addr && sock.sin_port == it->sin_port )
+            if(sock.sin_addr.s_addr == it->sin_addr.s_addr && ntohs(sock.sin_port) == it->sin_port )
                 continue;
 
             struct sockaddr_in send_sock = *it;
